@@ -1,5 +1,5 @@
 ﻿/**
- * TemporalGIS - API client with Axios + React Query hooks.
+ * AetherGIS - API client with Axios + React Query hooks.
  */
 import axios from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

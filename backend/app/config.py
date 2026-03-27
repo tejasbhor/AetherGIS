@@ -1,4 +1,4 @@
-﻿"""TemporalGIS Backend - Configuration (pydantic-settings)"""
+﻿"""AetherGIS Backend - Configuration (pydantic-settings)"""
 from __future__ import annotations
 
 from functools import lru_cache

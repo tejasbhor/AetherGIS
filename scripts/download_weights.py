@@ -67,7 +67,7 @@ def verify_weights(dest_dir: Path) -> bool:
 
 def main() -> None:
     print("=" * 60)
-    print("TemporalGIS — RIFE Model Weight Downloader")
+    print("AetherGIS — RIFE Model Weight Downloader")
     print("=" * 60)
 
     if DEST_DIR.exists() and any(DEST_DIR.rglob("flownet.pkl")):

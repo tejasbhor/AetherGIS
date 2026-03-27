@@ -1,5 +1,5 @@
 [project]
-name = "temporalgis"
+name = "AetherGIS"
 version = "1.0.0"
 description = "AI-Based Temporal Enhancement & WebGIS Visualization System for Satellite Imagery"
 requires-python = ">=3.11"

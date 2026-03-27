@@ -1,5 +1,5 @@
 /**
- * TemporalGIS — Persistent scientific disclaimer banner (Rule FR-WEB-06).
+ * AetherGIS — Persistent scientific disclaimer banner (Rule FR-WEB-06).
  * Always visible when AI frames are in the sequence.
  */
 import { useStore } from '../store/useStore';

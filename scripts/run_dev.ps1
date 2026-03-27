@@ -1,12 +1,12 @@
-# TemporalGIS — PowerShell Dev Helper
+# AetherGIS — PowerShell Dev Helper
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-Write-Host "`n=== TemporalGIS — Starting Development Environment ===" -ForegroundColor Cyan
+Write-Host "`n=== AetherGIS — Starting Development Environment ===" -ForegroundColor Cyan
 
 # Check Docker / Redis
-$dockerRunning = docker ps --format "{{.Names}}" 2>$null | Select-String "temporalgis_redis"
+$dockerRunning = docker ps --format "{{.Names}}" 2>$null | Select-String "AetherGIS_redis"
 if (-not $dockerRunning) {
     Write-Host "Starting Redis via Docker..." -ForegroundColor Yellow
     docker compose -f "$Root\docker-compose.yml" up redis -d
@@ -31,7 +31,7 @@ $frontend = Start-Process pwsh -ArgumentList "-NoExit", "-Command", `
     "cd '$Root\frontend'; npm run dev" `
     -PassThru
 
-Write-Host "`n✅ TemporalGIS is starting up!" -ForegroundColor Green
+Write-Host "`n✅ AetherGIS is starting up!" -ForegroundColor Green
 Write-Host "   Frontend: http://localhost:5173" -ForegroundColor Cyan
 Write-Host "   API Docs:  http://localhost:8000/api/docs" -ForegroundColor Cyan
 Write-Host "`nPress Ctrl+C to stop all processes." -ForegroundColor Yellow

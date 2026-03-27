@@ -1,4 +1,4 @@
-# TemporalGIS — FastAPI Backend Dockerfile
+# AetherGIS — FastAPI Backend Dockerfile
 FROM python:3.11-slim-bookworm
 
 # Install system dependencies

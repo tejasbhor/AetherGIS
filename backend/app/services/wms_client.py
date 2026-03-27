@@ -1,4 +1,4 @@
-"""TemporalGIS — NASA GIBS WMS Client with caching, retry, and rate-limiting."""
+"""AetherGIS — NASA GIBS WMS Client with caching, retry, and rate-limiting."""
 from __future__ import annotations
 
 import asyncio

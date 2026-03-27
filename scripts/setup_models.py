@@ -1,5 +1,5 @@
 """
-TemporalGIS — Universal AI Model Setup Script.
+AetherGIS — Universal AI Model Setup Script.
 Downloads and verifies weights for RIFE and FILM interpolation models.
 """
 from __future__ import annotations
@@ -49,7 +49,7 @@ def setup_rife_structure():
 
 def main():
     print("=" * 60)
-    print("TemporalGIS — AI Model Weights Setup")
+    print("AetherGIS — AI Model Weights Setup")
     print("=" * 60)
     
     # 1. FILM

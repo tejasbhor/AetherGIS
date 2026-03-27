@@ -1,5 +1,5 @@
 /**
- * TemporalGIS — PipelineProgress overlay.
+ * AetherGIS — PipelineProgress overlay.
  * Shows on the map during active pipeline execution.
  * Per PRD: pipeline stages are WMS Fetch → Preprocess → Segment → AI Inference → Confidence → Video
  */

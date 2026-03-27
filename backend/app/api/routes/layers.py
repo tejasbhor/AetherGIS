@@ -1,4 +1,4 @@
-﻿"""TemporalGIS - API routes: layers."""
+﻿"""AetherGIS - API routes: layers."""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException

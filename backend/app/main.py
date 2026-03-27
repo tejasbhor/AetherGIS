@@ -1,4 +1,4 @@
-"""TemporalGIS - FastAPI application entry point."""
+"""AetherGIS - FastAPI application entry point."""
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -20,14 +20,14 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info('TemporalGIS API starting up', version='1.0.0')
+    logger.info('AetherGIS API starting up', version='1.0.0')
     settings.ensure_dirs()
     yield
-    logger.info('TemporalGIS API shut down')
+    logger.info('AetherGIS API shut down')
 
 
 app = FastAPI(
-    title='TemporalGIS API',
+    title='AetherGIS API',
     description=(
         'AI-Based Temporal Enhancement & WebGIS Visualization System.\n\n'
         'All interpolated frames are visual approximations and are NOT suitable for scientific measurement or quantitative analysis.'
@@ -97,7 +97,7 @@ async def health_check() -> HealthResponse:
 @app.get('/', tags=['System'])
 async def root() -> dict:
     return {
-        'service': 'TemporalGIS API',
+        'service': 'AetherGIS API',
         'version': '1.0.0',
         'docs': '/api/docs',
         'disclaimer': 'All interpolated frames are visual approximations and are NOT suitable for scientific measurement or quantitative analysis.',

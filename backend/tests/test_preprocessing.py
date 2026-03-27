@@ -1,4 +1,4 @@
-"""TemporalGIS — Pytest tests: preprocessing pipeline."""
+"""AetherGIS — Pytest tests: preprocessing pipeline."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

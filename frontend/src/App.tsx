@@ -1,5 +1,5 @@
 /**
- * TemporalGIS — Main App layout (QGIS Engineering Dashboard)
+ * AetherGIS — Main App layout (QGIS Engineering Dashboard)
  * PRD-aligned: FILM primary model, real health status, server-down banner.
  */
 import { useEffect } from 'react';
@@ -27,7 +27,7 @@ function JobPoller() {
 
   useEffect(() => {
     if (!statusData) return;
-    if (statusData.status === 'COMPLETED')  setJobStatus('completed');
+    if (statusData.status === 'COMPLETED') setJobStatus('completed');
     else if (statusData.status === 'FAILED') { setJobStatus('failed'); setApiError(statusData.error || 'Pipeline job failed.'); }
     else if (statusData.status === 'RUNNING') setJobStatus('running');
     if (statusData.progress !== undefined) setJobProgress(statusData.progress);
@@ -70,11 +70,11 @@ function Menubar() {
   return (
     <div className="menubar">
       <div className="app-name">
-        Temporal<span className="blue">GIS</span>{' '}
+        Aether<span className="blue">GIS</span>{' '}
         <span style={{ fontWeight: 400, color: 'var(--t3)', fontSize: 11 }}>1.0.0</span>
       </div>
 
-      {['File','View','Layer','Pipeline','Analysis','Tools','Help'].map(m => (
+      {['File', 'View', 'Layer', 'Pipeline', 'Analysis', 'Tools', 'Help'].map(m => (
         <div key={m} className="menu-item">{m}</div>
       ))}
 
@@ -139,7 +139,7 @@ function Toolbar() {
       <div className="tb-info">CRS: <strong>EPSG:4326</strong></div>
       <div className="tb-info">Scale: <strong>1:4,500,000</strong></div>
       <div className="tb-info">
-        Layer: <strong>{selectedLayer ? selectedLayer.split('_').slice(0,2).join(' ') : 'No selection'}</strong>
+        Layer: <strong>{selectedLayer ? selectedLayer.split('_').slice(0, 2).join(' ') : 'No selection'}</strong>
       </div>
     </div>
   );
@@ -155,7 +155,7 @@ function StatusBar() {
 
   return (
     <div className="statusbar">
-      <div className="sb-seg">TemporalGIS 1.0.0</div>
+      <div className="sb-seg">AetherGIS 1.0.0</div>
       <div className="sb-seg">EPSG: <strong>4326</strong></div>
       {bbox ? (
         <div className="sb-seg" style={{ fontFamily: 'var(--mono)' }}>
@@ -172,7 +172,7 @@ function StatusBar() {
       )}
       {apiError && (
         <div className="sb-seg" style={{ color: 'var(--red)' }}>
-          ⚠ {apiError.length > 60 ? apiError.slice(0,60) + '…' : apiError}
+          ⚠ {apiError.length > 60 ? apiError.slice(0, 60) + '…' : apiError}
         </div>
       )}
       <div className={`sb-seg ${statusCls}`}>{statusLabel}</div>

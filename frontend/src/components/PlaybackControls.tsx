@@ -1,5 +1,5 @@
 /**
- * TemporalGIS — Playback controls: play/pause/step/speed + metadata toggle.
+ * AetherGIS — Playback controls: play/pause/step/speed + metadata toggle.
  */
 import { useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';

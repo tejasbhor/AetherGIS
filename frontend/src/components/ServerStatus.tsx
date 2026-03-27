@@ -1,5 +1,5 @@
 /**
- * TemporalGIS — Server-level status banner and connection error state.
+ * AetherGIS — Server-level status banner and connection error state.
  * Shown below the toolbar if the backend is unreachable.
  */
 import { useHealth } from '../api/client';
@@ -26,7 +26,7 @@ export default function ServerStatus() {
         <strong>BACKEND OFFLINE</strong>
         <span style={{ color: 'rgba(255,255,255,0.8)' }}>—</span>
         <span style={{ color: 'rgba(255,255,255,0.75)' }}>
-          Cannot connect to TemporalGIS API server at {window.location.hostname}:8000 — Pipeline functions are disabled.
+          Cannot connect to AetherGIS API server at {window.location.hostname}:8000 — Pipeline functions are disabled.
         </span>
         <span
           style={{ marginLeft: 'auto', cursor: 'pointer', textDecoration: 'underline', color: 'rgba(255,255,255,0.8)' }}

@@ -3,7 +3,7 @@ version: "3.9"
 services:
   redis:
     image: redis:7.2-alpine
-    container_name: temporalgis_redis
+    container_name: AetherGIS_redis
     ports:
       - "6379:6379"
     volumes:
@@ -11,7 +11,7 @@ services:
     command: redis-server --appendonly yes
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -20,7 +20,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.worker
-    container_name: temporalgis_worker
+    container_name: AetherGIS_worker
     environment:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
@@ -39,14 +39,14 @@ services:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu]
+              capabilities: [ gpu ]
     restart: unless-stopped
 
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: temporalgis_api
+    container_name: AetherGIS_api
     ports:
       - "8000:8000"
     environment:

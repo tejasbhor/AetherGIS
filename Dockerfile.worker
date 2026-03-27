@@ -1,4 +1,4 @@
-# TemporalGIS — Celery Worker Dockerfile
+# AetherGIS — Celery Worker Dockerfile
 FROM python:3.11-slim-bookworm
 
 # Install system dependencies (including FFmpeg for video processing)

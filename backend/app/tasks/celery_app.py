@@ -1,4 +1,4 @@
-"""TemporalGIS — Celery task definitions."""
+"""AetherGIS — Celery task definitions."""
 from __future__ import annotations
 
 from celery import Celery
@@ -9,7 +9,7 @@ from backend.app.config import get_settings
 settings = get_settings()
 
 celery_app = Celery(
-    "temporalgis",
+    "AetherGIS",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
 )
@@ -28,7 +28,7 @@ celery_app.conf.update(
 )
 
 
-@celery_app.task(bind=True, name="temporalgis.pipeline.run")
+@celery_app.task(bind=True, name="AetherGIS.pipeline.run")
 def run_pipeline_task(self, job_payload: dict) -> dict:
     """Celery wrapper for the async pipeline."""
     from datetime import datetime, timezone

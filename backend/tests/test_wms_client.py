@@ -1,4 +1,4 @@
-"""TemporalGIS — Pytest tests: WMS client."""
+"""AetherGIS — Pytest tests: WMS client."""
 from __future__ import annotations
 
 import io

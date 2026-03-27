@@ -1,4 +1,4 @@
-"""TemporalGIS — Structured JSON logging via structlog."""
+"""AetherGIS — Structured JSON logging via structlog."""
 from __future__ import annotations
 
 import logging

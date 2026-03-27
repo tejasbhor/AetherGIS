@@ -1,4 +1,4 @@
-"""TemporalGIS - AI Interpolation Engine."""
+"""AetherGIS - AI Interpolation Engine."""
 from __future__ import annotations
 
 import sys

@@ -1,4 +1,4 @@
-"""TemporalGIS — FFmpeg-based video generation module.
+"""AetherGIS — FFmpeg-based video generation module.
 
 Implements:
   - Dual MP4 output (original-only + interpolated)

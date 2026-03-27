@@ -1,5 +1,5 @@
 ﻿/**
- * TemporalGIS - Zustand global state store.
+ * AetherGIS - Zustand global state store.
  */
 import { create } from 'zustand';
 export type ConfidenceClass = 'HIGH' | 'MEDIUM' | 'LOW' | 'REJECTED';

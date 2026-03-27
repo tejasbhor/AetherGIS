@@ -1,5 +1,5 @@
 """
-TemporalGIS — FILM Model Weight Downloader.
+AetherGIS — FILM Model Weight Downloader.
 Downloads film_net_fp32.pt from dajes/frame-interpolation-pytorch.
 """
 from __future__ import annotations
@@ -40,7 +40,7 @@ def download_with_progress(url: str, dest: Path) -> None:
 
 def main() -> None:
     print("=" * 60)
-    print("TemporalGIS — FILM Model Weight Downloader")
+    print("AetherGIS — FILM Model Weight Downloader")
     print("=" * 60)
 
     if DEST_PATH.exists():

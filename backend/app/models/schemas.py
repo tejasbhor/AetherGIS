@@ -1,4 +1,4 @@
-﻿"""TemporalGIS â€” Pydantic request/response schemas."""
+﻿"""AetherGIS â€” Pydantic request/response schemas."""
 from __future__ import annotations
 
 from datetime import datetime

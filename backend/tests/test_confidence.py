@@ -1,4 +1,4 @@
-"""TemporalGIS — Pytest tests: confidence scoring."""
+"""AetherGIS — Pytest tests: confidence scoring."""
 from __future__ import annotations
 
 import numpy as np

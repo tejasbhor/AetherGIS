@@ -1,5 +1,5 @@
 /**
- * TemporalGIS — TimelineScrubber (QGIS-style dock)
+ * AetherGIS — TimelineScrubber (QGIS-style dock)
  * PRD-aligned: rejected frame ticks, low-confidence filtering (default off),
  * gap indicators, empty state, stats with PRD KPIs.
  */
@@ -13,17 +13,17 @@ function getTickClass(frame: FrameMetadata): 'real' | 'ai-h' | 'ai-m' | 'ai-l' |
   const cls = frame.confidence_class;
   if (!cls) return 'ai-h';
   if (cls === 'REJECTED') return 'rejected';
-  if (cls === 'HIGH')     return 'ai-h';
-  if (cls === 'MEDIUM')   return 'ai-m';
-  if (cls === 'LOW')      return 'ai-l';
+  if (cls === 'HIGH') return 'ai-h';
+  if (cls === 'MEDIUM') return 'ai-m';
+  if (cls === 'LOW') return 'ai-l';
   return 'ai-h';
 }
 
 const TICK_TITLE: Record<string, string> = {
-  real:     'Observed (real satellite data)',
-  'ai-h':   'AI-Generated · High Confidence',
-  'ai-m':   'AI-Generated · Medium Confidence',
-  'ai-l':   'AI-Generated · Low Confidence',
+  real: 'Observed (real satellite data)',
+  'ai-h': 'AI-Generated · High Confidence',
+  'ai-m': 'AI-Generated · Medium Confidence',
+  'ai-l': 'AI-Generated · Low Confidence',
   rejected: 'Rejected — Flow inconsistency too high (no frame generated)',
 };
 
@@ -225,9 +225,9 @@ export default function TimelineScrubber() {
                 title={`${TICK_TITLE[type]} · ${fmt(frame.timestamp)} UTC · Frame ${idx + 1}`}
                 onClick={() => { setIsPlaying(false); setCurrentFrameIndex(idx); }}
               >
-                {type === 'real'     && <div className="f-tick-lbl">R</div>}
-                {type === 'ai-m'    && <div className="f-tick-lbl">~</div>}
-                {type === 'ai-l'    && <div className="f-tick-lbl">!</div>}
+                {type === 'real' && <div className="f-tick-lbl">R</div>}
+                {type === 'ai-m' && <div className="f-tick-lbl">~</div>}
+                {type === 'ai-l' && <div className="f-tick-lbl">!</div>}
                 {type === 'rejected' && <div className="f-tick-lbl" style={{ color: 'var(--t2)' }}>✕</div>}
               </div>
             );

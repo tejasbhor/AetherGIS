@@ -1,4 +1,4 @@
-"""TemporalGIS - FramePipeline: full orchestration from ingest to video output."""
+"""AetherGIS - FramePipeline: full orchestration from ingest to video output."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

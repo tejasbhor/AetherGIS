@@ -1,5 +1,5 @@
 /**
- * TemporalGIS — Export panel: download original ZIP, interpolated ZIP, MP4, JSON.
+ * AetherGIS — Export panel: download original ZIP, interpolated ZIP, MP4, JSON.
  */
 import { useStore } from '../store/useStore';
 import { getVideoUrl, getMetadataUrl } from '../api/client';
@@ -80,13 +80,13 @@ export default function ExportPanel() {
                 label="MP4 Video"
                 icon="🎬"
                 url={getVideoUrl(jobId!, 'interpolated')}
-                filename={`temporalgis_interpolated_${jobId!.slice(0, 8)}.mp4`}
+                filename={`AetherGIS_interpolated_${jobId!.slice(0, 8)}.mp4`}
               />
               <ExportBtn
                 label="Original"
                 icon="📹"
                 url={getVideoUrl(jobId!, 'original')}
-                filename={`temporalgis_original_${jobId!.slice(0, 8)}.mp4`}
+                filename={`AetherGIS_original_${jobId!.slice(0, 8)}.mp4`}
               />
             </div>
           </div>

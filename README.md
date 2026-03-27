@@ -1,10 +1,10 @@
-# TemporalGIS — AI-Based Temporal Enhancement & WebGIS Visualization System
+# AetherGIS — AI-Based Temporal Enhancement & WebGIS Visualization System
 
 > **⚠️ SCIENTIFIC DISCLAIMER:** All AI-interpolated frames are visual approximations. NOT suitable for scientific measurement, operational forecasting, or any safety-critical decisions. Always use observed satellite data for analysis.
 
 ## Overview
 
-TemporalGIS bridges temporal gaps in satellite imagery by:
+AetherGIS bridges temporal gaps in satellite imagery by:
 - **Ingesting** real satellite data from NASA GIBS via WMS
 - **Interpolating** frames using RIFE 4.x AI model (RTX GPU accelerated)
 - **Enforcing** multi-layer accuracy control (optical flow + confidence scoring)

@@ -1,4 +1,4 @@
-"""TemporalGIS — Optical Flow Validation & Confidence Scoring.
+"""AetherGIS — Optical Flow Validation & Confidence Scoring.
 
 Implements PRD §6.4:
   - Forward-backward Farneback optical flow consistency

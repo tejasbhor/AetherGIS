@@ -1,4 +1,4 @@
-"""TemporalGIS — Preprocessing pipeline.
+"""AetherGIS — Preprocessing pipeline.
 
 Implements:
   - DQ-01: Frame content validation (moved here from wms_client for centralization)

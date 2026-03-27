@@ -1,5 +1,5 @@
 /**
- * TemporalGIS — AnalysisPanel (right dock)
+ * AetherGIS — AnalysisPanel (right dock)
  * PRD-aligned: empty state, job failed state, real metric display,
  * confidence-based color coding, wired export URLs.
  */
@@ -29,15 +29,15 @@ function EmptyState() {
   });
 
   useEffect(() => {
-    try { localStorage.setItem('tgis_guide_open', String(open)); } catch {}
+    try { localStorage.setItem('tgis_guide_open', String(open)); } catch { }
   }, [open]);
 
   const STEPS = [
-    { n: '1', title: 'Select a layer',   body: 'Choose a NASA GIBS satellite layer from the left panel. The map will instantly auto-pan to the WMO operational domain.' },
-    { n: '2', title: 'Monitoring Domain',body: 'The bounding box is set automatically via presets (e.g. Bay of Bengal, Gulf of Mexico), but you can drag on the map to override it.' },
+    { n: '1', title: 'Select a layer', body: 'Choose a NASA GIBS satellite layer from the left panel. The map will instantly auto-pan to the WMO operational domain.' },
+    { n: '2', title: 'Monitoring Domain', body: 'The bounding box is set automatically via presets (e.g. Bay of Bengal, Gulf of Mexico), but you can drag on the map to override it.' },
     { n: '3', title: 'Smart Time Range', body: 'Start and end times are automatically configured to fetch the latest available frames based on the satellite\'s latency.' },
-    { n: '4', title: 'Choose AI model',  body: 'FILM (Google Research) is the primary model — best for large motion and longer gaps.' },
-    { n: '5', title: 'Run Pipeline',     body: 'Click "Run Pipeline". Analysis results, metrics, and video exports will appear here when the job completes.' },
+    { n: '4', title: 'Choose AI model', body: 'FILM (Google Research) is the primary model — best for large motion and longer gaps.' },
+    { n: '5', title: 'Run Pipeline', body: 'Click "Run Pipeline". Analysis results, metrics, and video exports will appear here when the job completes.' },
   ];
 
   return (
@@ -128,7 +128,7 @@ function RunningState({ progress }: { progress: number }) {
             ['Frames', 'Calculating…'],
             ['PSNR', 'Pending'],
             ['SSIM', 'Pending'],
-          ].map(([k,v]) => (
+          ].map(([k, v]) => (
             <tr key={k}>
               <td className="prop-key">{k}</td>
               <td className="prop-val" style={{ color: 'var(--t4)' }}>{v}</td>
@@ -167,10 +167,10 @@ export default function AnalysisPanel() {
   // ─ Results loaded
   const total = metrics?.total_frames || 0;
   const confData = metrics ? [
-    { label: 'High',     count: metrics.high_confidence_count,   pct: total ? metrics.high_confidence_count / total * 100 : 0,   color: 'var(--green)' },
-    { label: 'Medium',   count: metrics.medium_confidence_count, pct: total ? metrics.medium_confidence_count / total * 100 : 0, color: 'var(--orange)' },
-    { label: 'Low',      count: metrics.low_confidence_count,    pct: total ? metrics.low_confidence_count / total * 100 : 0,    color: 'var(--red)' },
-    { label: 'Observed', count: metrics.observed_frames,         pct: total ? metrics.observed_frames / total * 100 : 0,         color: 'var(--t3)' },
+    { label: 'High', count: metrics.high_confidence_count, pct: total ? metrics.high_confidence_count / total * 100 : 0, color: 'var(--green)' },
+    { label: 'Medium', count: metrics.medium_confidence_count, pct: total ? metrics.medium_confidence_count / total * 100 : 0, color: 'var(--orange)' },
+    { label: 'Low', count: metrics.low_confidence_count, pct: total ? metrics.low_confidence_count / total * 100 : 0, color: 'var(--red)' },
+    { label: 'Observed', count: metrics.observed_frames, pct: total ? metrics.observed_frames / total * 100 : 0, color: 'var(--t3)' },
   ] : [];
 
   const psnrValues = frames.filter(f => f.psnr !== undefined).map(f => f.psnr as number);
@@ -273,7 +273,7 @@ export default function AnalysisPanel() {
                 </div>
               ) : (
                 <svg viewBox="0 0 270 48" fill="none" preserveAspectRatio="none">
-                  {[12,24,36].map(y => <line key={y} x1="0" y1={y} x2="270" y2={y} stroke="var(--b3)" strokeWidth="0.75" />)}
+                  {[12, 24, 36].map(y => <line key={y} x1="0" y1={y} x2="270" y2={y} stroke="var(--b3)" strokeWidth="0.75" />)}
                   <line x1="0" y1="24" x2="270" y2="24" stroke="var(--orange)" strokeWidth="0.75" strokeDasharray="4,3" opacity="0.7" />
                   {sparkPath && (
                     <>
@@ -281,9 +281,9 @@ export default function AnalysisPanel() {
                       <path d={sparkPath} stroke="var(--blue)" strokeWidth="1.25" strokeLinejoin="round" />
                     </>
                   )}
-                  <text x="2" y="11"  fill="var(--t3)" fontFamily="JetBrains Mono" fontSize="6">{maxPsnr.toFixed(0)} dB</text>
-                  <text x="2" y="23"  fill="var(--orange)" fontFamily="JetBrains Mono" fontSize="6">28 dB</text>
-                  <text x="2" y="35"  fill="var(--t3)" fontFamily="JetBrains Mono" fontSize="6">{minPsnr.toFixed(0)} dB</text>
+                  <text x="2" y="11" fill="var(--t3)" fontFamily="JetBrains Mono" fontSize="6">{maxPsnr.toFixed(0)} dB</text>
+                  <text x="2" y="23" fill="var(--orange)" fontFamily="JetBrains Mono" fontSize="6">28 dB</text>
+                  <text x="2" y="35" fill="var(--t3)" fontFamily="JetBrains Mono" fontSize="6">{minPsnr.toFixed(0)} dB</text>
                 </svg>
               )}
             </div>
@@ -301,7 +301,7 @@ export default function AnalysisPanel() {
               <table className="prop-table">
                 <tbody>
                   <tr><td className="prop-key">Frame Index</td>     <td className="prop-val blue">#{currentFrameIndex + 1} / {frames.length}</td></tr>
-                  <tr><td className="prop-key">Timestamp</td>       <td className="prop-val blue" style={{ fontFamily: 'var(--mono)', fontSize: 10 }}>{new Date(currentFrame.timestamp).toISOString().slice(0,16).replace('T',' ')} UTC</td></tr>
+                  <tr><td className="prop-key">Timestamp</td>       <td className="prop-val blue" style={{ fontFamily: 'var(--mono)', fontSize: 10 }}>{new Date(currentFrame.timestamp).toISOString().slice(0, 16).replace('T', ' ')} UTC</td></tr>
                   <tr><td className="prop-key">Frame Type</td>      <td className={`prop-val ${currentFrame.is_interpolated ? 'orange' : 'green'}`}>{currentFrame.is_interpolated ? 'AI-Generated' : 'Observed'}</td></tr>
                   <tr><td className="prop-key">Model</td>           <td className="prop-val">{currentFrame.model_used ?? '—'}</td></tr>
                   <tr><td className="prop-key">Confidence</td>      <td className="prop-val"><ConfTag cls={currentFrame.confidence_class} score={currentFrame.confidence_score} /></td></tr>
