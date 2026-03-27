@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Node/Frontend
+node_modules/
+dist-fe/
+.next/
+out/
+.vercel
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Project Specific
+exports/
+backend/app/ai_models/film/*.pt
+backend/app/ai_models/rife/*.pkl
+tmp_*.py
+test_output.txt
+test_results.txt
+uv.lock
+
+# OS
+.DS_Store
+Thumbs.db

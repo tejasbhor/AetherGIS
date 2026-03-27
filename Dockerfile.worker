@@ -1,0 +1,31 @@
+# TemporalGIS — Celery Worker Dockerfile
+FROM python:3.11-slim-bookworm
+
+# Install system dependencies (including FFmpeg for video processing)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    ffmpeg \
+    curl \
+    && rm -rf /var/lib/apt-cache/*
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+WORKDIR /app
+
+ENV UV_COMPILE_BYTECODE=1
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Install dependencies
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --frozen --no-dev
+
+# Copy application code
+COPY backend ./backend
+COPY .env ./
+
+# Run Celery worker
+# Using -P solo as default for simplicity in dev/production with GPU tasks
+CMD ["uv", "run", "celery", "-A", "backend.app.tasks.celery_app.celery_app", "worker", "--loglevel=info", "-P", "solo"]

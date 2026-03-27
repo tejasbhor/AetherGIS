@@ -1,0 +1,296 @@
+﻿from __future__ import annotations
+
+import re
+import time
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+
+import httpx
+
+from backend.app.config import get_settings
+from backend.app.services.wms_client import BHUVAN_LAYERS, GIBS_LAYERS
+from backend.app.utils.logging import get_logger
+
+logger = get_logger(__name__)
+settings = get_settings()
+
+_CAPS_TTL_SECONDS = 30 * 60
+_WMS_XML_CACHE: tuple[float, ET.Element] | None = None
+_DESCRIBE_DOMAINS_CACHE: dict[str, tuple[float, ET.Element]] = {}
+_LAYER_CACHE: dict[str, tuple[float, 'ParsedLayerCapabilities']] = {}
+
+_DURATION_RE = re.compile(
+    r'^P(?:(?P<days>\d+)D)?(?:T(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?)?$'
+)
+
+
+@dataclass
+class ParsedLayerCapabilities:
+    layer_id: str
+    time_start: Optional[datetime]
+    time_end: Optional[datetime]
+    latest_available_time: Optional[datetime]
+    suggested_time_start: Optional[datetime]
+    suggested_time_end: Optional[datetime]
+    step_minutes: Optional[int]
+    temporal_resolution_minutes: float
+    time_source_live: bool
+
+
+def _parse_iso_datetime(value: str) -> Optional[datetime]:
+    value = value.strip()
+    if not value:
+        return None
+    if len(value) == 10:
+        return datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
+    if value.endswith('Z'):
+        value = value[:-1] + '+00:00'
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _parse_iso_duration_to_minutes(value: str) -> Optional[int]:
+    match = _DURATION_RE.match(value.strip())
+    if not match:
+        return None
+    parts = {key: int(number or 0) for key, number in match.groupdict().items()}
+    total_seconds = (
+        parts['days'] * 86400
+        + parts['hours'] * 3600
+        + parts['minutes'] * 60
+        + parts['seconds']
+    )
+    return max(1, round(total_seconds / 60)) if total_seconds else None
+
+
+def _find_direct_child_text(element: ET.Element, local_name: str) -> Optional[str]:
+    for child in element:
+        if child.tag.endswith(local_name) and child.text:
+            return child.text.strip()
+    return None
+
+
+async def _get_wms_capabilities_root() -> ET.Element:
+    global _WMS_XML_CACHE
+    now = time.time()
+    if _WMS_XML_CACHE and now - _WMS_XML_CACHE[0] < _CAPS_TTL_SECONDS:
+        return _WMS_XML_CACHE[1]
+
+    params = {'SERVICE': 'WMS', 'REQUEST': 'GetCapabilities', 'VERSION': '1.1.1'}
+    async with httpx.AsyncClient(timeout=settings.wms_timeout_seconds, follow_redirects=True) as client:
+        response = await client.get(settings.nasa_gibs_base_url, params=params)
+        response.raise_for_status()
+        root = ET.fromstring(response.text)
+
+    _WMS_XML_CACHE = (now, root)
+    return root
+
+
+async def _find_nasa_layer_element(layer_id: str) -> Optional[ET.Element]:
+    root = await _get_wms_capabilities_root()
+    for layer in root.iter():
+        if not layer.tag.endswith('Layer'):
+            continue
+        name = _find_direct_child_text(layer, 'Name')
+        if name == layer_id:
+            return layer
+    return None
+
+
+async def _get_describe_domains_root(layer_id: str) -> ET.Element:
+    cached = _DESCRIBE_DOMAINS_CACHE.get(layer_id)
+    now = time.time()
+    if cached and now - cached[0] < _CAPS_TTL_SECONDS:
+        return cached[1]
+
+    params = {
+        'SERVICE': 'WMTS',
+        'REQUEST': 'DescribeDomains',
+        'VERSION': '1.0.0',
+        'LAYER': layer_id,
+        'TILEMATRIXSET': '250m',
+    }
+    async with httpx.AsyncClient(timeout=settings.wms_timeout_seconds, follow_redirects=True) as client:
+        response = await client.get(settings.nasa_gibs_wmts_url, params=params)
+        response.raise_for_status()
+        root = ET.fromstring(response.text)
+
+    _DESCRIBE_DOMAINS_CACHE[layer_id] = (now, root)
+    return root
+
+
+def _extract_time_extent_text(layer: ET.Element) -> Optional[str]:
+    for child in layer:
+        if child.tag.endswith('Extent') or child.tag.endswith('Dimension'):
+            name = child.attrib.get('name') or child.attrib.get('Name')
+            if name and name.lower() == 'time' and child.text:
+                return child.text.strip()
+    return None
+
+
+def _extract_describe_domains_text(root: ET.Element) -> Optional[str]:
+    for element in root.iter():
+        if element.tag.endswith('Domain') or element.tag.endswith('DimensionDomain'):
+            name = element.attrib.get('name') or element.attrib.get('Identifier') or element.attrib.get('dimension')
+            if name and 'time' not in name.lower():
+                continue
+            values = element.attrib.get('default')
+            if values:
+                return values.strip()
+            if element.text and element.text.strip():
+                return element.text.strip()
+        if element.tag.endswith('Value') and element.text and element.text.strip():
+            return element.text.strip()
+    return None
+
+
+def _round_down(dt: datetime, step_minutes: int) -> datetime:
+    step_seconds = step_minutes * 60
+    epoch = int(dt.timestamp())
+    rounded = epoch - (epoch % step_seconds)
+    return datetime.fromtimestamp(rounded, tz=timezone.utc)
+
+
+def _suggest_window(end: datetime, step_minutes: int) -> tuple[datetime, datetime]:
+    if step_minutes >= 180:
+        suggested_end = end.replace(hour=0, minute=0, second=0, microsecond=0)
+        suggested_start = suggested_end - timedelta(days=2)
+        return suggested_start, suggested_end
+
+    span_minutes = max(step_minutes * 6, 120)
+    suggested_end = _round_down(end, step_minutes)
+    suggested_start = suggested_end - timedelta(minutes=span_minutes)
+    return suggested_start, suggested_end
+
+
+def _parse_time_extent(extent_text: str, fallback_step_minutes: int) -> tuple[Optional[datetime], Optional[datetime], Optional[int]]:
+    extent_text = extent_text.strip()
+    if not extent_text:
+        return None, None, fallback_step_minutes
+
+    if '/' in extent_text and not ',' in extent_text:
+        parts = extent_text.split('/')
+        if len(parts) >= 2:
+            start = _parse_iso_datetime(parts[0])
+            end = _parse_iso_datetime(parts[1])
+            step = _parse_iso_duration_to_minutes(parts[2]) if len(parts) >= 3 else fallback_step_minutes
+            return start, end, step or fallback_step_minutes
+
+    if ',' in extent_text:
+        entries = [item.strip() for item in extent_text.split(',') if item.strip()]
+        parsed = [_parse_iso_datetime(item) for item in entries]
+        parsed = [item for item in parsed if item is not None]
+        if parsed:
+            step = None
+            if len(parsed) >= 2:
+                step = max(1, round((parsed[-1] - parsed[-2]).total_seconds() / 60))
+            return parsed[0], parsed[-1], step or fallback_step_minutes
+
+    single = _parse_iso_datetime(extent_text)
+    return single, single, fallback_step_minutes
+
+
+def _prefer_more_precise(
+    describe_domains: tuple[Optional[datetime], Optional[datetime], Optional[int]],
+    wms_caps: tuple[Optional[datetime], Optional[datetime], Optional[int]],
+) -> tuple[Optional[datetime], Optional[datetime], Optional[int], bool]:
+    dd_start, dd_end, dd_step = describe_domains
+    wms_start, wms_end, wms_step = wms_caps
+
+    if dd_end is not None:
+        return dd_start or wms_start, dd_end, dd_step or wms_step, True
+    return wms_start, wms_end, wms_step, False
+
+
+async def get_layer_capabilities_live(layer_id: str) -> ParsedLayerCapabilities:
+    cached = _LAYER_CACHE.get(layer_id)
+    now = time.time()
+    if cached and now - cached[0] < _CAPS_TTL_SECONDS:
+        return cached[1]
+
+    if layer_id in GIBS_LAYERS:
+        info = GIBS_LAYERS[layer_id]
+        try:
+            layer = await _find_nasa_layer_element(layer_id)
+            if layer is None:
+                raise ValueError(f'Layer {layer_id} not present in live NASA capabilities')
+
+            fallback_step = max(1, round(info['temporal_resolution_minutes']))
+            wms_extent_text = _extract_time_extent_text(layer)
+            wms_caps = _parse_time_extent(wms_extent_text or '', fallback_step)
+
+            describe_domains_caps = (None, None, fallback_step)
+            describe_domains_live = False
+            try:
+                describe_root = await _get_describe_domains_root(layer_id)
+                describe_text = _extract_describe_domains_text(describe_root)
+                if describe_text:
+                    describe_domains_caps = _parse_time_extent(describe_text, fallback_step)
+                    describe_domains_live = True
+            except Exception as describe_exc:
+                logger.info('DescribeDomains unavailable; falling back to WMS timing metadata', layer_id=layer_id, error=str(describe_exc))
+
+            time_start, time_end, step_minutes, used_describe_domains = _prefer_more_precise(describe_domains_caps, wms_caps)
+            latest_available_time = time_end
+            suggested_time_start = None
+            suggested_time_end = None
+            if latest_available_time and step_minutes:
+                suggested_time_start, suggested_time_end = _suggest_window(latest_available_time, step_minutes)
+
+            parsed = ParsedLayerCapabilities(
+                layer_id=layer_id,
+                time_start=time_start,
+                time_end=time_end,
+                latest_available_time=latest_available_time,
+                suggested_time_start=suggested_time_start,
+                suggested_time_end=suggested_time_end,
+                step_minutes=step_minutes,
+                temporal_resolution_minutes=float(step_minutes or info['temporal_resolution_minutes']),
+                time_source_live=used_describe_domains or describe_domains_live or (time_end is not None),
+            )
+            _LAYER_CACHE[layer_id] = (now, parsed)
+            return parsed
+        except Exception as exc:
+            logger.warning('Live NASA GIBS time parsing failed; falling back to curated timing', layer_id=layer_id, error=str(exc))
+            fallback_step = max(1, round(info['temporal_resolution_minutes']))
+            fallback_end = _round_down(datetime.now(timezone.utc) - timedelta(minutes=max(fallback_step * 3, 30)), fallback_step)
+            fallback_start, fallback_end = _suggest_window(fallback_end, fallback_step)
+            parsed = ParsedLayerCapabilities(
+                layer_id=layer_id,
+                time_start=datetime(2000, 1, 1, tzinfo=timezone.utc),
+                time_end=fallback_end,
+                latest_available_time=fallback_end,
+                suggested_time_start=fallback_start,
+                suggested_time_end=fallback_end,
+                step_minutes=fallback_step,
+                temporal_resolution_minutes=float(info['temporal_resolution_minutes']),
+                time_source_live=False,
+            )
+            _LAYER_CACHE[layer_id] = (now, parsed)
+            return parsed
+
+    if layer_id in BHUVAN_LAYERS:
+        info = BHUVAN_LAYERS[layer_id]
+        step_minutes = max(1, round(info['temporal_resolution_minutes']))
+        end = datetime.now(timezone.utc)
+        start, end = _suggest_window(end, step_minutes)
+        parsed = ParsedLayerCapabilities(
+            layer_id=layer_id,
+            time_start=datetime(2000, 1, 1, tzinfo=timezone.utc),
+            time_end=end,
+            latest_available_time=end,
+            suggested_time_start=start,
+            suggested_time_end=end,
+            step_minutes=step_minutes,
+            temporal_resolution_minutes=float(info['temporal_resolution_minutes']),
+            time_source_live=False,
+        )
+        _LAYER_CACHE[layer_id] = (now, parsed)
+        return parsed
+
+    raise KeyError(layer_id)
+
