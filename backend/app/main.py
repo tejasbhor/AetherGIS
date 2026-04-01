@@ -53,7 +53,7 @@ async def add_request_id(request: Request, call_next) -> Response:
     import uuid
     import structlog
 
-    request_id = str(uuid.uuid4())[:8]
+    request_id = str(uuid.uuid4())[0:8]
     structlog.contextvars.bind_contextvars(request_id=request_id)
     response = await call_next(request)
     response.headers['X-Request-ID'] = request_id
@@ -81,7 +81,7 @@ async def health_check() -> HealthResponse:
     gpu_device_name = torch.cuda.get_device_name(0) if gpu_ok else None
 
     # Get engines (cached in _engines dict)
-    rife_laoded = get_engine('rife').is_loaded
+    rife_loaded = get_engine('rife').is_loaded
     film_loaded = get_engine('film').is_loaded
 
     return HealthResponse(
@@ -89,7 +89,7 @@ async def health_check() -> HealthResponse:
         redis_connected=redis_ok,
         gpu_available=gpu_ok,
         gpu_device_name=gpu_device_name,
-        rife_model_loaded=rife_laoded,
+        rife_model_loaded=rife_loaded,
         film_model_loaded=film_loaded,
     )
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AetherGIS - API client with Axios + React Query hooks.
  */
 import axios from 'axios';
@@ -43,6 +43,7 @@ export interface PipelineRunPayload {
   resolution: number;
   interpolation_model: string;
   n_intermediate: number;
+  step_minutes?: number | null;
   include_low_confidence: boolean;
 }
 
@@ -68,6 +69,27 @@ export const fetchLayerCapabilities = async (layerId: string): Promise<LayerCapa
 
 export const submitPipeline = async (payload: PipelineRunPayload): Promise<{ job_id: string }> => {
   const { data } = await apiClient.post('/pipeline/run', payload);
+  return data;
+};
+
+export const cancelPipeline = async (jobId: string): Promise<{ status: string }> => {
+  const { data } = await apiClient.post(`/pipeline/${jobId}/cancel`);
+  return data;
+};
+
+export const triggerVideoExport = async (
+  jobId: string,
+  videoType: 'original' | 'interpolated' | 'all',
+): Promise<{ status: 'ready' | 'generating'; url?: string }> => {
+  const { data } = await apiClient.post(`/pipeline/${jobId}/export/${videoType}`);
+  return data;
+};
+
+export const checkVideoReady = async (
+  jobId: string,
+  videoType: 'original' | 'interpolated' | 'all',
+): Promise<{ status: 'ready' | 'not_generated'; url?: string }> => {
+  const { data } = await apiClient.get(`/pipeline/${jobId}/export/${videoType}/status`);
   return data;
 };
 

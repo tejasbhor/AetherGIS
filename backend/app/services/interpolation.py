@@ -5,6 +5,7 @@ import sys
 import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any
 from pathlib import Path
 
 import cv2
@@ -52,30 +53,34 @@ class LKFallbackEngine(InterpolationEngine):
     def interpolate(self, frame_a: np.ndarray, frame_b: np.ndarray, n_intermediate: int) -> list[np.ndarray]:
         gray_a = cv2.cvtColor((frame_a * 255).astype(np.uint8), cv2.COLOR_RGB2GRAY)
         gray_b = cv2.cvtColor((frame_b * 255).astype(np.uint8), cv2.COLOR_RGB2GRAY)
+        
+        # Rule DR-01: Enhanced Lucas-Kanade + Weighted Dissolve
         flow = cv2.calcOpticalFlowFarneback(
             gray_a.astype(np.float32),
             gray_b.astype(np.float32),
             None,
-            pyr_scale=0.5,
-            levels=3,
-            winsize=15,
-            iterations=3,
-            poly_n=5,
-            poly_sigma=1.2,
-            flags=0,
+            pyr_scale=0.5, levels=3, winsize=15, iterations=3, poly_n=5, poly_sigma=1.2, flags=0
         )
+        
         frames = []
         for i in range(1, n_intermediate + 1):
             t = i / (n_intermediate + 1)
-            warped = self._warp_frame(frame_a, flow, t)
-            frames.append(np.clip(warped.astype(np.float32), 0.0, 1.0))
+            # Forward warp from A
+            warped_a = self._warp_frame(frame_a, flow, t)
+            # Backward warp from B (invert flow)
+            warped_b = self._warp_frame(frame_b, -flow, 1.0 - t)
+            
+            # Weighted blend: combines motion estimation with safe cross-dissolve
+            # This ensures even if flow is local/zero, the frames aren't exact duplicates.
+            blended = warped_a * (1.0 - t) + warped_b * t
+            frames.append(np.clip(blended.astype(np.float32), 0.0, 1.0))
         return frames
 
 
 class RIFEEngine(InterpolationEngine):
     def __init__(self) -> None:
-        self._model = None
-        self._device = None
+        self._model: Any = None
+        self._device: str | None = None
         self._loaded = False
         self._effective_model_name = 'lk_fallback'
         self._fallback = LKFallbackEngine()
@@ -138,6 +143,8 @@ class RIFEEngine(InterpolationEngine):
         ta = F.pad(ta, (0, pw - w, 0, ph - h))
         tb = F.pad(tb, (0, pw - w, 0, ph - h))
         with torch.no_grad():
+            if self._model is None:
+                raise RuntimeError("RIFE model not loaded")
             middle = self._model.inference(ta, tb)
         result = middle[0].detach().cpu().numpy().transpose(1, 2, 0)[:h, :w]
         return np.clip(result, 0.0, 1.0)
@@ -183,8 +190,8 @@ class RIFEEngine(InterpolationEngine):
 
 class FILMEngine(InterpolationEngine):
     def __init__(self) -> None:
-        self._model = None
-        self._device = None
+        self._model: Any = None
+        self._device: str | None = None
         self._loaded = False
         self._effective_model_name = 'lk_fallback'
         self._fallback = LKFallbackEngine()
@@ -253,18 +260,29 @@ class FILMEngine(InterpolationEngine):
             with torch.no_grad():
                 for i in range(1, n_intermediate + 1):
                     t_val = i / (n_intermediate + 1)
-                    t_tensor = torch.tensor([[t_val]], dtype=torch.float32)
+                    # FILM expects t as [1, 1] or [1] float32 tensor
+                    t_tensor = torch.tensor([t_val], dtype=torch.float32).view(1, 1)
                     if self._device == 'cuda':
                         t_tensor = t_tensor.cuda()
+                    
+                    if self._model is None:
+                         raise RuntimeError("FILM model not loaded")
                     output = self._model(ta, tb, t_tensor)
                     if isinstance(output, dict):
                         output = output.get('image') or next(iter(output.values()))
                     if isinstance(output, (list, tuple)):
                         output = output[0]
+                    
                     res = output[0].detach().cpu().numpy().transpose(1, 2, 0)[:h, :w]
                     res = np.clip(res, 0.0, 1.0)
-                    if (not np.isfinite(res).all()) or float(res.mean()) < 0.001 or float(res.std()) < 0.001:
-                        raise ValueError(f'FILM produced invalid frame statistics mean={res.mean():.4f} std={res.std():.4f}')
+                    
+                    # Validation with fallback trigger
+                    stat_mean = float(res.mean())
+                    stat_std = float(res.std())
+                    if (not np.isfinite(res).all()) or stat_mean < 0.001 or stat_std < 0.001:
+                        logger.warning("FILM output degraded - falling back to LK for this gap", mean=stat_mean, std=stat_std)
+                        return self._fallback.interpolate(frame_a, frame_b, n_intermediate)
+                        
                     results.append(res)
 
             self._effective_model_name = self.model_name
@@ -308,31 +326,67 @@ def interpolate_pair_with_segmentation(
     engine: InterpolationEngine,
     n_intermediate: int = 4,
 ) -> SegmentedInterpolationResult:
+    """
+    Orchestrate gap-filling based on temporal resolution.
+    For large gaps, we recursively anchor midpoints to avoid long-distance flow artifacts.
+    """
     n_sub = gap_info.sub_intervals
-    max_fps = gap_info.max_frames_per_interval
-    effective_n = min(n_intermediate, max_fps)
+    # Determine the absolute number of frames to generate for this gap
+    # Ensure total count matches what the UI/User expects (n_intermediate)
+    effective_n = n_intermediate
 
-    if n_sub == 1:
+    if n_sub == 1 or effective_n < n_sub:
+        # Simple mode: direct interpolation if gap is short or n is small
         frames = engine.interpolate(frame_a, frame_b, effective_n)
         t_positions = [(i + 1) / (effective_n + 1) for i in range(len(frames))]
         return SegmentedInterpolationResult(frames, t_positions, 1, gap_info, engine.effective_model_name)
 
+    # Segmented mode: split gap into sub-intervals
+    # 1. Compute major anchor frames at the split boundaries
+    n_anchors = n_sub - 1
+    anchor_frames = engine.interpolate(frame_a, frame_b, n_anchors)
+    
+    # full sequence: A, Anchors..., B
+    full_sequence = [frame_a] + anchor_frames + [frame_b]
+    
     all_frames: list[np.ndarray] = []
     all_t_positions: list[float] = []
-    n_anchors = n_sub - 1
-    anchor_frames_raw = engine.interpolate(frame_a, frame_b, n_anchors)
-    full_sequence = [frame_a] + anchor_frames_raw + [frame_b]
-
-    for seg_idx in range(len(full_sequence) - 1):
-        seg_a = full_sequence[seg_idx]
-        seg_b = full_sequence[seg_idx + 1]
-        seg_frames = engine.interpolate(seg_a, seg_b, max(1, effective_n // n_sub))
-        seg_start = seg_idx / n_sub
-        seg_end = (seg_idx + 1) / n_sub
-        for i, frame in enumerate(seg_frames):
-            t = seg_start + (i + 1) / (len(seg_frames) + 1) * (seg_end - seg_start)
-            all_frames.append(frame)
+    
+    # 2. Add anchors to valid results
+    for i, anchor in enumerate(anchor_frames):
+        all_frames.append(anchor)
+        all_t_positions.append((i + 1) / n_sub)
+        
+    # 3. If we still need more frames, interpolate between the endpoints/anchors
+    remaining = effective_n - len(all_frames)
+    if remaining > 0:
+        # Distribute remaining frames as evenly as possible using a simple greedy allocation
+        # For simplicity in this PRD context, we'll just fill the first segments
+        for seg_idx in range(n_sub):
+            if remaining <= 0: break
+            
+            # Sub-interpolate 1 frame into this segment
+            # Note: For even better smoothness, we'd do (remaining // n_sub) but 
+            # for most weather gaps n_sub is small (2 or 4) and n_interp is small (4)
+            seg_a, seg_b = full_sequence[seg_idx], full_sequence[seg_idx+1]
+            sub_frames = engine.interpolate(seg_a, seg_b, 1)
+            
+            seg_start = seg_idx / n_sub
+            seg_end = (seg_idx + 1) / n_sub
+            t = (seg_start + seg_end) / 2.0
+            
+            all_frames.append(sub_frames[0])
             all_t_positions.append(t)
+            remaining -= 1
 
-    logger.info('Segmented interpolation complete', sub_intervals=n_sub, generated_frames=len(all_frames), gap_minutes=gap_info.gap_minutes, category=gap_info.category)
-    return SegmentedInterpolationResult(all_frames, all_t_positions, n_sub, gap_info, engine.effective_model_name)
+    # 4. Final sort to ensure temporal consistency
+    results: list[tuple[float, np.ndarray]] = sorted(zip(all_t_positions, all_frames), key=lambda x: x[0])
+    
+    final_frames: list[np.ndarray] = [r[1] for r in results][0:effective_n]
+    final_t: list[float] = [r[0] for r in results][0:effective_n]
+
+    logger.info('Segmented interpolation complete (Multi-Anchor)', 
+                sub_intervals=n_sub, final_count=len(final_frames), 
+                category=gap_info.category)
+                
+    return SegmentedInterpolationResult(final_frames, final_t, n_sub, gap_info, engine.effective_model_name)

@@ -55,7 +55,8 @@ async def run_pipeline(
     resolution: int,
     interpolation_model: str,
     n_intermediate: int,
-    include_low_confidence: bool,
+    step_minutes: Optional[int] = None,
+    include_low_confidence: bool = False,
     progress_callback: Optional[ProgressCallback] = None,
 ) -> PipelineResult:
     created_at = datetime.now(timezone.utc)
@@ -66,7 +67,7 @@ async def run_pipeline(
             progress_callback(progress, message)
 
     layer_info = GIBS_LAYERS.get(layer_id) or BHUVAN_LAYERS.get(layer_id, {})
-    temporal_res = float(layer_info.get('temporal_resolution_minutes', 1440.0))
+    temporal_res = step_minutes or float(layer_info.get('temporal_resolution_minutes', 1440.0))
 
     timestamps = _generate_timestamps(time_start, time_end, temporal_res)
     if len(timestamps) > settings.max_frames_per_session:
@@ -183,14 +184,8 @@ async def run_pipeline(
     export_dir = settings.exports_dir / job_id
     export_dir.mkdir(parents=True, exist_ok=True)
 
-    obs_only_frames = [all_frames[idx] for idx, meta in enumerate(all_metadata) if not meta.is_interpolated]
-    obs_only_meta = [meta for meta in all_metadata if not meta.is_interpolated]
-    original_video_path = export_dir / 'original.mp4'
-    frames_to_video(obs_only_frames, obs_only_meta, original_video_path, fps=5, show_overlay=True)
-
-    interp_video_path = export_dir / 'interpolated.mp4'
-    frames_to_video(all_frames, all_metadata, interp_video_path, fps=10, show_overlay=True)
-
+    # Save individual frame PNGs for real-time map preview (no video generation at this stage).
+    # MP4 export is on-demand only via POST /api/v1/pipeline/{job_id}/export/{video_type}
     frames_dir = export_dir / 'frames'
     frames_dir.mkdir(exist_ok=True)
     for i, frame in enumerate(all_frames):
@@ -211,8 +206,9 @@ async def run_pipeline(
         bbox=bbox,
         time_start=time_start,
         time_end=time_end,
-        original_video_url=f'/api/v1/pipeline/{job_id}/video/original',
-        interpolated_video_url=f'/api/v1/pipeline/{job_id}/video/interpolated',
+        # video URLs are null until user triggers export
+        original_video_url=None,
+        interpolated_video_url=None,
         frames=all_metadata,
         metrics=metrics,
         created_at=created_at,

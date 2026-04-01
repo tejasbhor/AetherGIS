@@ -6,7 +6,81 @@
 import { useState, useEffect } from 'react';
 import type { FrameMetadata } from '../store/useStore';
 import { useStore } from '../store/useStore';
-import { getVideoUrl, getMetadataUrl } from '../api/client';
+import { getMetadataUrl, triggerVideoExport } from '../api/client';
+
+// ─── Export tab with POST-based on-demand video generation ───────────────────
+function ExportTab({ jobId }: { jobId: string | null }) {
+  const [status, setStatus] = useState<Record<string, 'idle' | 'loading' | 'done' | 'error'>>({});
+
+  const handleExport = async (type: 'original' | 'interpolated' | 'all') => {
+    if (!jobId) return;
+    setStatus(s => ({ ...s, [type]: 'loading' }));
+    try {
+      const res = await triggerVideoExport(jobId, type);
+      if (res.status === 'ready' && res.url) {
+        const a = document.createElement('a');
+        a.href = res.url;
+        a.download = `aethergis_${type}_${jobId.slice(0, 8)}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setStatus(s => ({ ...s, [type]: 'done' }));
+      } else {
+        // fallback: open in new tab (video generation may be async)
+        window.open(`/api/v1/pipeline/${jobId}/export/${type}`, '_blank');
+        setStatus(s => ({ ...s, [type]: 'done' }));
+      }
+    } catch {
+      setStatus(s => ({ ...s, [type]: 'error' }));
+    }
+  };
+
+  const btnLabel = (type: string, base: string) => {
+    const s = status[type];
+    if (s === 'loading') return '⧗ Generating…';
+    if (s === 'done') return '✓ Ready';
+    if (s === 'error') return '⚠ Retry';
+    return base;
+  };
+
+  return (
+    <>
+      <div className="section-hdr" style={{ borderTop: 'none' }}>
+        Export Results
+        <span style={{ fontSize: 8 }}>▼</span>
+      </div>
+      <div style={{ padding: '6px 8px' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--t4)', marginBottom: 8, lineHeight: 1.6 }}>
+          Job ID: <span style={{ color: 'var(--t2)' }}>{jobId ?? '—'}</span>
+        </div>
+        <div className="export-grid">
+          <button
+            className="exp-btn"
+            disabled={!jobId || status.interpolated === 'loading'}
+            onClick={() => handleExport('interpolated')}
+            style={{ opacity: jobId ? 1 : 0.4 }}
+          >↓ {btnLabel('interpolated', 'MP4 (Enhanced)')}</button>
+          <button
+            className="exp-btn"
+            disabled={!jobId || status.original === 'loading'}
+            onClick={() => handleExport('original')}
+            style={{ opacity: jobId ? 1 : 0.4 }}
+          >↓ {btnLabel('original', 'MP4 (Original)')}</button>
+          <a
+            className="exp-btn"
+            href={jobId ? getMetadataUrl(jobId) : '#'}
+            target="_blank" rel="noreferrer"
+            style={{ textDecoration: 'none', pointerEvents: jobId ? 'auto' : 'none', opacity: jobId ? 1 : 0.4 }}
+          >↓ JSON Metadata</a>
+          <button className="exp-btn" disabled style={{ opacity: 0.3, cursor: 'not-allowed' }}>↓ ZIP Frames (Soon)</button>
+        </div>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--t4)', marginTop: 8, lineHeight: 1.6 }}>
+          ℹ Video generation is on-demand. Metadata includes per-frame confidence scores, PSNR/SSIM, model used, and gap analysis.
+        </div>
+      </div>
+    </>
+  );
+}
 
 function ConfTag({ cls, score }: { cls?: string; score?: number }) {
   if (!cls) return null;
@@ -211,6 +285,10 @@ export default function AnalysisPanel() {
           <div className={`mc-v ${(metrics?.tcs ?? 0) > 0.75 ? 'green' : 'orange'}`}>{metrics?.tcs?.toFixed(2) ?? '—'}</div>
           <div className="mc-k">TCS</div>
         </div>
+        <div className="metric-cell">
+          <div className="mc-v cyan">{metrics ? (metrics.total_frames / metrics.observed_frames).toFixed(1) : '—'}x</div>
+          <div className="mc-k">Smooth Power</div>
+        </div>
       </div>
 
       {/* Tab row */}
@@ -246,7 +324,7 @@ export default function AnalysisPanel() {
             {metrics && (
               <div style={{ padding: '4px 8px', borderBottom: '1px solid var(--b2)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--t4)' }}>
-                  FSI: <span style={{ color: 'var(--t2)' }}>{metrics.fsi?.toFixed(2) ?? '—'}</span>
+                  FSI: <span style={{ color: 'var(--t2)' }} title="Frame Stability Index (Lower is better registration)">{metrics.fsi?.toFixed(2) ?? '—'}</span>
                 </div>
                 <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--t4)' }}>
                   High conf: <span style={{ color: 'var(--green)' }}>
@@ -256,10 +334,80 @@ export default function AnalysisPanel() {
                     <span style={{ color: 'var(--orange)' }}> ⚠ &lt;60% target</span>}
                 </div>
                 <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--t4)' }}>
-                  Obs/AI: <span style={{ color: 'var(--t2)' }}>{metrics.observed_frames}/{metrics.interpolated_frames}</span>
+                  Sampling: <span style={{ color: 'var(--t2)' }} title="Observed vs Generated frames">{metrics.observed_frames} OBS / {metrics.interpolated_frames} AI</span>
                 </div>
               </div>
             )}
+
+            {/* Scientific Validation Profile */}
+            <div className="section-hdr">
+              Scientific Validation Profile
+              <span style={{ fontSize: 8 }}>▼</span>
+            </div>
+            <div style={{ padding: '8px', background: 'var(--b1)', borderBottom: '1px solid var(--b2)' }}>
+               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                 <div style={{ background: 'var(--b2)', padding: '6px', borderRadius: 4, border: '1px solid var(--b3)' }}>
+                    <div style={{ fontFamily: 'var(--cond)', fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', marginBottom: 2 }}>Morphological Integrity</div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: ssimClass === 'green' ? 'var(--green)' : 'var(--orange)', fontWeight: 700 }}>
+                      {ssimClass === 'green' ? 'STRUCTURALLY COHERENT' : 'STRUCTURALLY ESTIMATED'}
+                    </div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--t4)', marginTop: 2 }}>
+                      {metrics?.avg_ssim
+                        ? `Mean SSIM ${metrics.avg_ssim.toFixed(3)} · Threshold ≥0.85`
+                        : 'Awaiting data…'}
+                    </div>
+                 </div>
+                 <div style={{ background: 'var(--b2)', padding: '6px', borderRadius: 4, border: '1px solid var(--b3)' }}>
+                    <div style={{ fontFamily: 'var(--cond)', fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', marginBottom: 2 }}>Temporal Fidelity</div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: (metrics?.tcs ?? 0) > 0.8 ? 'var(--blue)' : 'var(--t2)', fontWeight: 700 }}>
+                      {(metrics?.tcs ?? 0) > 0.8 ? 'TEMPORALLY CONSISTENT' : 'TEMPORALLY VARIABLE'}
+                    </div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--t4)', marginTop: 2 }}>
+                      {metrics?.tcs
+                        ? `TCS ${metrics.tcs.toFixed(2)} · Threshold ≥0.80`
+                        : 'Awaiting analysis…'}
+                    </div>
+                 </div>
+               </div>
+               {/* Self-consistency caveat */}
+               <div style={{ marginTop: 6, padding: '5px 6px', background: 'var(--b2)', border: '1px solid var(--b3)', borderRadius: 3, fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--t4)', lineHeight: 1.4 }}>
+                 ⓘ SSIM and TCS measure AI self-consistency relative to bracketing observed frames.
+                 These are <em>not</em> independent ground-truth validations.
+               </div>
+               {/* Temporal Resolution Analysis */}
+               <div style={{ marginTop: 8, padding: '6px', background: 'var(--blue-bg)', border: '1px solid var(--blue-lt)', borderRadius: 3 }}>
+                  <div style={{ fontFamily: 'var(--cond)', fontSize: 9, color: 'var(--blue)', fontWeight: 700, marginBottom: 2 }}>TEMPORAL RESOLUTION ANALYSIS</div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 8.5, color: 'var(--t2)', lineHeight: 1.45 }}>
+                    {metrics
+                      ? <>This run generated <strong>{metrics.interpolated_frames} synthetic frames</strong> from {metrics.observed_frames} observations, achieving a <strong>{(metrics.total_frames / metrics.observed_frames).toFixed(1)}× increase</strong> in temporal density. Useful for qualitative motion analysis when observational gaps exceed 1 hour.</>
+                      : 'Run a pipeline to see temporal resolution analysis.'}
+                  </div>
+               </div>
+            </div>
+
+            {/* Data Sources */}
+            <div className="section-hdr">
+              Data Sources
+              <span style={{ fontSize: 8 }}>▼</span>
+            </div>
+            <div style={{ padding: '6px 8px', borderBottom: '1px solid var(--b2)' }}>
+              {[
+                { label: 'NASA GIBS', desc: 'GOES-E/W, Himawari-9, MODIS, VIIRS', status: 'active' as const },
+                { label: 'ISRO MOSDAC', desc: 'INSAT-3D, INSAT-3DR', status: 'planned' as const },
+                { label: 'EUMETSAT', desc: 'Meteosat-12 (HRV)', status: 'planned' as const },
+              ].map(src => (
+                <div key={src.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', borderBottom: '1px solid var(--b2)' }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: src.status === 'active' ? 'var(--green)' : 'var(--t4)', flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: 'var(--cond)', fontSize: 10, color: src.status === 'active' ? 'var(--t1)' : 'var(--t4)', fontWeight: 600 }}>{src.label}</div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--t4)' }}>{src.desc}</div>
+                  </div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: src.status === 'active' ? 'var(--green)' : 'var(--t4)' }}>
+                    {src.status === 'active' ? 'Active' : 'Phase 2+'}
+                  </div>
+                </div>
+              ))}
+            </div>
 
             {/* PSNR chart */}
             <div className="section-hdr">
@@ -335,49 +483,19 @@ export default function AnalysisPanel() {
         )}
 
         {activeTab === 'export' && (
-          <>
-            <div className="section-hdr" style={{ borderTop: 'none' }}>
-              Export Results
-              <span style={{ fontSize: 8 }}>▼</span>
-            </div>
-            <div style={{ padding: '6px 8px' }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--t4)', marginBottom: 8, lineHeight: 1.6 }}>
-                Job ID: <span style={{ color: 'var(--t2)' }}>{jobId ?? '—'}</span>
-              </div>
-              <div className="export-grid">
-                <a
-                  className="exp-btn"
-                  href={jobId ? getVideoUrl(jobId, 'interpolated') : '#'}
-                  target="_blank" rel="noreferrer"
-                  style={{ textDecoration: 'none', pointerEvents: jobId ? 'auto' : 'none', opacity: jobId ? 1 : 0.4 }}
-                >↓ MP4 (Enhanced)</a>
-                <a
-                  className="exp-btn"
-                  href={jobId ? getVideoUrl(jobId, 'original') : '#'}
-                  target="_blank" rel="noreferrer"
-                  style={{ textDecoration: 'none', pointerEvents: jobId ? 'auto' : 'none', opacity: jobId ? 1 : 0.4 }}
-                >↓ MP4 (Original)</a>
-                <a
-                  className="exp-btn"
-                  href={jobId ? getMetadataUrl(jobId) : '#'}
-                  target="_blank" rel="noreferrer"
-                  style={{ textDecoration: 'none', pointerEvents: jobId ? 'auto' : 'none', opacity: jobId ? 1 : 0.4 }}
-                >↓ JSON Metadata</a>
-                <div className="exp-btn" style={{ opacity: 0.4, cursor: 'not-allowed' }}>↓ ZIP Frames</div>
-              </div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--t4)', marginTop: 8, lineHeight: 1.6 }}>
-                ℹ Exported metadata includes per-frame confidence scores, PSNR/SSIM, model used, and gap analysis (PRD §6.5).
-              </div>
-            </div>
-          </>
+          <ExportTab jobId={jobId} />
         )}
       </div>
 
-      {/* PRD §13.1 — Scientific Disclaimer (always visible) */}
+      {/* Scientific Disclaimer — professional meteorological product notice */}
       <div className="warn-strip">
-        <div className="ws-title">⚠ Scientific Disclaimer (PRD §13.1)</div>
+        <div className="ws-title">⚠ Product Notice</div>
         <div className="ws-body">
-          All interpolated frames are visual approximations. NOT suitable for scientific measurement, quantitative analysis, or operational forecasting. Never replace observed satellite data.
+          AI-interpolated frames are <strong>synthetically generated approximations</strong> intended for qualitative temporal analysis only.
+          They are <strong>not suitable</strong> for operational forecasting, storm advisory, or scientific measurement.
+          Always refer to original observed satellite data for authoritative analysis.
+          <br />
+          <span style={{ color: 'var(--t4)', fontSize: 8 }}>Source: NASA GIBS · Model: Google FILM v1 · SSIM/TCS metrics measure AI self-consistency only.</span>
         </div>
       </div>
     </div>

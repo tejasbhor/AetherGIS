@@ -178,18 +178,21 @@ def _frames_to_video_ffmpeg(
         stderr=subprocess.PIPE,
     )
 
-    for frame_f32, meta in zip(frames, metadata_list):
-        frame_bgr = cv2.cvtColor(
-            (frame_f32 * 255).clip(0, 255).astype(np.uint8),
-            cv2.COLOR_RGB2BGR,
-        )
-        frame_bgr = _burn_overlay(frame_bgr, meta, show_overlay)
-        process.stdin.write(frame_bgr.tobytes())
-
-    process.stdin.close()
-    _, stderr = process.communicate()
+    stdin = process.stdin
+    if stdin is not None:
+        for frame_f32, meta in zip(frames, metadata_list):
+            frame_bgr = cv2.cvtColor(
+                (frame_f32 * 255).clip(0, 255).astype(np.uint8),
+                cv2.COLOR_RGB2BGR,
+            )
+            frame_bgr = _burn_overlay(frame_bgr, meta, show_overlay)
+            stdin.write(frame_bgr.tobytes())
+        stdin.close()
+    _, stderr_raw = process.communicate()
     if process.returncode != 0:
-        raise RuntimeError(f"FFmpeg error: {stderr.decode()[:500]}")
+        stderr_text = stderr_raw.decode("utf-8", errors="replace") if isinstance(stderr_raw, bytes) else str(stderr_raw)
+        err_excerpt = stderr_text[:500]
+        raise RuntimeError(f"FFmpeg error: {err_excerpt}")
 
 
 def _frames_to_video_opencv(
@@ -236,14 +239,29 @@ def write_metadata_sidecar(
     return output_path
 
 
-def save_frame_png(frame: np.ndarray, path: Path, metadata: Optional[FrameMetadata] = None) -> Path:
-    """Save an individual frame as PNG with optional overlay."""
+def save_frame_png(
+    frame: np.ndarray,
+    path: Path,
+    metadata: Optional[FrameMetadata] = None,
+    burn_overlay: bool = False,
+) -> Path:
+    """
+    Save an individual frame as PNG.
+
+    Args:
+        frame:        float32 RGB [H, W, 3] array in [0, 1] range.
+        path:         Destination file path (parent created if missing).
+        metadata:     Optional frame metadata for overlay.
+        burn_overlay: If True, burn the timestamp/AI watermark into the PNG.
+                      Default is False — keep PNGs raw for clean map preview
+                      and to avoid double-overlay when re-read for video export.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     frame_bgr = cv2.cvtColor(
         (frame * 255).clip(0, 255).astype(np.uint8),
         cv2.COLOR_RGB2BGR,
     )
-    if metadata:
+    if burn_overlay and metadata:
         frame_bgr = _burn_overlay(frame_bgr, metadata, show_overlay=True)
     cv2.imwrite(str(path), frame_bgr)
     return path

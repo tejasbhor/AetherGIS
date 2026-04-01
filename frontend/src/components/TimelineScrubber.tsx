@@ -1,9 +1,10 @@
 /**
  * AetherGIS — TimelineScrubber (QGIS-style dock)
- * PRD-aligned: rejected frame ticks, low-confidence filtering (default off),
- * gap indicators, empty state, stats with PRD KPIs.
+ * PRD-aligned: uses centralized store playback engine, correct frame-index
+ * mapping, gap indicators, confidence colouring, and stats with PRD KPIs.
+ *
+ * NO setInterval here — PlaybackEngine (App.tsx) is the single driver.
  */
-import { useRef, useEffect } from 'react';
 import type { FrameMetadata } from '../store/useStore';
 import { useStore } from '../store/useStore';
 
@@ -31,7 +32,7 @@ function fmt(ts: string) {
   return new Date(ts).toISOString().slice(11, 16);
 }
 
-// ─── Empty state ─────────────────────────────────────────────
+// ─── Empty state ──────────────────────────────────────────────────────────────
 function EmptyTrack() {
   return (
     <div style={{
@@ -55,81 +56,118 @@ function EmptyTrack() {
 
 export default function TimelineScrubber() {
   const {
-    pipelineResult, currentFrameIndex, setCurrentFrameIndex,
-    isPlaying, setIsPlaying, playbackSpeed, setPlaybackSpeed,
-    showLowConfidence, setShowLowConfidence,
+    pipelineResult,
+    currentFrameIndex,
+    setCurrentFrameIndex,
+    isPlaying,
+    setIsPlaying,
+    playbackSpeed,
+    setPlaybackSpeed,
+    showLowConfidence,
+    setShowLowConfidence,
+    playbackMode,
+    setPlaybackMode,
+    getNextFrameIndex,
+    seekToStart,
+    seekToEnd,
   } = useStore();
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const indexRef = useRef(currentFrameIndex);
-  indexRef.current = currentFrameIndex;
-
-  // PRD §6.6.3: showLowConfidence toggle gates low-conf frames from default playback
-  const allFrames = pipelineResult?.frames || [];
-  const frames = allFrames.filter(f => {
-    if (!f.is_interpolated) return true;
-    if (f.confidence_class === 'REJECTED') return false; // rejected never shown
-    if (!showLowConfidence && f.confidence_class === 'LOW') return false;
-    return true;
-  });
-
-  const totalFrames = frames.length;
-  const currentMeta = frames[currentFrameIndex];
+  // All raw frames from the result
+  const allFrames = pipelineResult?.frames ?? [];
   const metrics = pipelineResult?.metrics;
 
-  // Playback interval
-  useEffect(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    if (!isPlaying || totalFrames === 0) return;
-    const delay = Math.round(1000 / (10 * playbackSpeed));
-    intervalRef.current = setInterval(() => {
-      const next = indexRef.current + 1;
-      if (next >= totalFrames) { setIsPlaying(false); return; }
-      setCurrentFrameIndex(next);
-    }, delay);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isPlaying, playbackSpeed, totalFrames]);
+  // The "visible" frame list respects playbackMode + showLowConfidence.
+  // We still RENDER all ticks (dimmed when excluded from playback).
+  // The currentFrameIndex is always an index into allFrames (not filtered list).
+  const visibleCount = allFrames.filter((f): boolean => {
+    if (f.confidence_class === 'REJECTED') return false;
+    if (!showLowConfidence && f.confidence_class === 'LOW' && f.is_interpolated) return false;
+    if (playbackMode === 'original') return !f.is_interpolated;
+    if (playbackMode === 'interpolated') return f.is_interpolated;
+    return true;
+  }).length;
 
+  const currentMeta = allFrames[currentFrameIndex];
+  const rejectedCount = allFrames.filter(f => f.confidence_class === 'REJECTED').length;
+
+  // Transport handlers — all index math goes through store actions
   const handlePlayPause = () => {
-    if (currentFrameIndex >= totalFrames - 1) setCurrentFrameIndex(0);
+    if (!isPlaying) {
+      // If at the end, restart from the beginning
+      if (getNextFrameIndex(currentFrameIndex, 1) === null) seekToStart();
+    }
     setIsPlaying(!isPlaying);
   };
 
-  // Time ruler (5 labels, evenly spaced)
+  const handleStepBack = () => {
+    setIsPlaying(false);
+    const prev = getNextFrameIndex(currentFrameIndex, -1);
+    if (prev !== null) setCurrentFrameIndex(prev);
+  };
+
+  const handleStepForward = () => {
+    setIsPlaying(false);
+    const next = getNextFrameIndex(currentFrameIndex, 1);
+    if (next !== null) setCurrentFrameIndex(next);
+  };
+
+  const handleFirst = () => { setIsPlaying(false); seekToStart(); };
+  const handleLast  = () => { setIsPlaying(false); seekToEnd(); };
+
+  // Time ruler (5 evenly-spaced labels)
   let rulerLabels: string[] = [];
-  if (frames.length >= 2) {
-    const t0 = new Date(frames[0].timestamp).getTime();
-    const t1 = new Date(frames[frames.length - 1].timestamp).getTime();
-    rulerLabels = [0, 0.25, 0.5, 0.75, 1].map(p => {
-      return new Date(t0 + p * (t1 - t0)).toISOString().slice(11, 16);
-    });
+  if (allFrames.length >= 2) {
+    const t0 = new Date(allFrames[0].timestamp).getTime();
+    const t1 = new Date(allFrames[allFrames.length - 1].timestamp).getTime();
+    rulerLabels = [0, 0.25, 0.5, 0.75, 1].map(p =>
+      new Date(t0 + p * (t1 - t0)).toISOString().slice(11, 16)
+    );
   }
 
-  // Per-frame frame counts
-  const rejectedCount = allFrames.filter(f => f.confidence_class === 'REJECTED').length;
+  const hasFrames = allFrames.length > 0;
+  const canBack = hasFrames && getNextFrameIndex(currentFrameIndex, -1) !== null;
+  const canFwd  = hasFrames && getNextFrameIndex(currentFrameIndex, 1) !== null;
+
+  // Visible frame count for display (mode-filtered)
+  const modeLabel = playbackMode === 'original' ? 'Observed' : playbackMode === 'interpolated' ? 'AI' : 'All';
 
   return (
     <div className="timeline-dock">
       {/* Transport header */}
       <div className="tl-header">
-        <button className="pb-btn" title="First frame" disabled={!totalFrames}
-          onClick={() => { setIsPlaying(false); setCurrentFrameIndex(0); }}>⏮</button>
-        <button className="pb-btn" title="Step back" disabled={!totalFrames || currentFrameIndex === 0}
-          onClick={() => { setIsPlaying(false); setCurrentFrameIndex(Math.max(0, currentFrameIndex - 1)); }}>◀</button>
-        <button className="pb-btn pb-play" disabled={!totalFrames} onClick={handlePlayPause} title="Play/Pause">
+        <button className="pb-btn" title="First frame" disabled={!hasFrames} onClick={handleFirst}>⏮</button>
+        <button className="pb-btn" title="Step back" disabled={!canBack} onClick={handleStepBack}>◀</button>
+        <button
+          className="pb-btn pb-play"
+          disabled={!hasFrames}
+          onClick={handlePlayPause}
+          title={isPlaying ? 'Pause' : 'Play'}
+        >
           {isPlaying ? '⏸' : '▶'}
         </button>
-        <button className="pb-btn" title="Step forward" disabled={!totalFrames || currentFrameIndex >= totalFrames - 1}
-          onClick={() => { setIsPlaying(false); setCurrentFrameIndex(Math.min(totalFrames - 1, currentFrameIndex + 1)); }}>▶</button>
-        <button className="pb-btn" title="Last frame" disabled={!totalFrames}
-          onClick={() => { setIsPlaying(false); setCurrentFrameIndex(totalFrames - 1); }}>⏭</button>
+        <button className="pb-btn" title="Step forward" disabled={!canFwd} onClick={handleStepForward}>▶</button>
+        <button className="pb-btn" title="Last frame" disabled={!hasFrames} onClick={handleLast}>⏭</button>
 
-        <select className="speed-select" value={playbackSpeed}
-          onChange={e => setPlaybackSpeed(Number(e.target.value) as any)}>
+        <select
+          className="speed-select"
+          value={playbackSpeed}
+          onChange={e => setPlaybackSpeed(Number(e.target.value) as 0.5 | 1 | 2 | 4)}
+        >
           <option value={0.5}>0.5×</option>
           <option value={1}>1×</option>
           <option value={2}>2×</option>
           <option value={4}>4×</option>
+        </select>
+
+        <select
+          className="speed-select"
+          value={playbackMode}
+          onChange={e => { setIsPlaying(false); setPlaybackMode(e.target.value as any); }}
+          style={{ width: 110, marginLeft: 4 }}
+        >
+          <option value="all">All Frames</option>
+          <option value="original">Original Only</option>
+          <option value="interpolated">AI Generated</option>
         </select>
 
         {/* Current frame timestamp */}
@@ -144,7 +182,9 @@ export default function TimelineScrubber() {
               <span style={{ color: 'var(--t3)', fontSize: 9 }}> UTC</span>
               {'  ·  '}
               <span style={{ color: 'var(--t3)', fontSize: 9 }}>
-                {currentFrameIndex + 1}/{totalFrames}
+                {currentFrameIndex + 1}/{allFrames.length}
+                {' '}
+                <span style={{ color: 'var(--blue)', fontSize: 8 }}>({modeLabel}: {visibleCount})</span>
               </span>
             </>
           ) : (
@@ -163,7 +203,7 @@ export default function TimelineScrubber() {
           Low Conf
         </label>
 
-        {/* Stats columns */}
+        {/* Stats bar */}
         {metrics && (
           <div className="tl-stats-bar">
             <div className="tl-stat">
@@ -211,23 +251,35 @@ export default function TimelineScrubber() {
           </div>
         )}
 
-        {/* Frame track */}
+        {/* Frame track — ALL frames are rendered as ticks. Playback-excluded ones are dimmed. */}
         <div className="tl-track">
-          {frames.length === 0 ? (
+          {allFrames.length === 0 ? (
             <EmptyTrack />
-          ) : frames.map((frame, idx) => {
+          ) : allFrames.map((frame) => {
             const type = getTickClass(frame);
+            const idx = frame.frame_index;
             const isSelected = idx === currentFrameIndex;
+
+            // Dim ticks that would be skipped by the current playback mode
+            let dimOpacity = 1;
+            if (playbackMode === 'original' && frame.is_interpolated) dimOpacity = 0.18;
+            if (playbackMode === 'interpolated' && !frame.is_interpolated) dimOpacity = 0.18;
+            if (!showLowConfidence && frame.confidence_class === 'LOW' && frame.is_interpolated) dimOpacity = 0.12;
+
             return (
               <div
-                key={`${frame.frame_index}-${idx}`}
+                key={idx}
                 className={`f-tick ${type}${isSelected ? ' sel' : ''}${type === 'rejected' ? ' f-tick-rejected' : ''}`}
+                style={{ opacity: dimOpacity }}
                 title={`${TICK_TITLE[type]} · ${fmt(frame.timestamp)} UTC · Frame ${idx + 1}`}
-                onClick={() => { setIsPlaying(false); setCurrentFrameIndex(idx); }}
+                onClick={() => {
+                  setIsPlaying(false);
+                  setCurrentFrameIndex(idx);
+                }}
               >
-                {type === 'real' && <div className="f-tick-lbl">R</div>}
-                {type === 'ai-m' && <div className="f-tick-lbl">~</div>}
-                {type === 'ai-l' && <div className="f-tick-lbl">!</div>}
+                {type === 'real'   && <div className="f-tick-lbl">R</div>}
+                {type === 'ai-m'  && <div className="f-tick-lbl">~</div>}
+                {type === 'ai-l'  && <div className="f-tick-lbl">!</div>}
                 {type === 'rejected' && <div className="f-tick-lbl" style={{ color: 'var(--t2)' }}>✕</div>}
               </div>
             );

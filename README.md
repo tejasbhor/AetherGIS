@@ -2,13 +2,13 @@
 
 > **⚠️ SCIENTIFIC DISCLAIMER:** All AI-interpolated frames are visual approximations. NOT suitable for scientific measurement, operational forecasting, or any safety-critical decisions. Always use observed satellite data for analysis.
 
-## Overview
+AetherGIS addresses the "Temporal Blackout" in modern meteorology, where standard satellite snapshots (often 10-60 mins apart) fail to convey the fluid dynamics of rapid intensifications like hurricanes and cyclones.
 
-AetherGIS bridges temporal gaps in satellite imagery by:
-- **Ingesting** real satellite data from NASA GIBS via WMS
-- **Interpolating** frames using RIFE 4.x AI model (RTX GPU accelerated)
-- **Enforcing** multi-layer accuracy control (optical flow + confidence scoring)
-- **Delivering** a premium WebGIS interface built on OpenLayers 9
+By bridging gaps exceeding **1 hour**, AetherGIS:
+- **Ingests** historical and live satellite data (NASA GIBS / ISRO Bhuvan)
+- **Synthesizes** "missing" observations using the **FILM (Google Research)** AI engine
+- **Validates** results through a rigorous **Scientific Metric Suite** (PSNR, SSIM, TCS, FSI)
+- **Visualizes** the resulting 4K-ready smooth motion in a premium WebGIS interface
 
 ## Tech Stack
 
@@ -23,6 +23,12 @@ AetherGIS bridges temporal gaps in satellite imagery by:
 | Map | OpenLayers 9.x |
 | State | Zustand |
 | Data Fetching | React Query + Axios |
+
+## The Scientific "Why" 🌡️
+Traditional satellite loops at 10-minute intervals are often too "jumpy" for high-cadence interpretability, while 1-hour+ gaps in polar or geostationary data lose entire convective cycles. AetherGIS provides **Temporal Smoothing Power (5x-10x)**, allowing researchers to:
+1.  **See the Unseen**: Bridging the 60-minute gap to reveal the fluid path of a cyclone's eye.
+2.  **Statistical Validation**: Every pixel is scored. We don't just "guess" motion; we compute structural similarity (SSIM) and temporal consistency (TCS) to ensure the AI remains morphologically faithful to the physics of the atmosphere.
+3.  **Operationally Aware**: Built to align with WMO/RSMC standards for coastal monitoring.
 
 ## Quick Start
 
@@ -146,6 +152,7 @@ Per PRD §6.4 & §11:
 | **Confidence Scoring** | CS = 0.40×(1-flow) + 0.35×(1-MAD) + 0.25×(1-gap_factor) |
 | **Conservative Merge** | min(weighted, worst_sub_score) — Rule OI-01 |
 | **Adaptive Thresholding** | Optimized mean (>0.001) for nighttime IR imagery |
+| **Statistical Validator** | Automated PSNR/SSIM/TCS profiling per job |
 | **Monsoon Presets** | New Indian Subcontinent preset (RSMC New Delhi) |
 | **Watermarking** | Rule OI-02: Every AI frame carries burned-in metadata |
 

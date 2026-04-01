@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AetherGIS - Zustand global state store.
  */
 import { create } from 'zustand';
@@ -34,11 +34,17 @@ export interface PipelineResult {
   job_id: string;
   status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED';
   layer_id: string;
+  data_source?: string;
+  bbox?: [number, number, number, number];
+  time_start?: string;
+  time_end?: string;
   original_video_url?: string;
   interpolated_video_url?: string;
   frames: FrameMetadata[];
   metrics?: QualityMetrics;
   error?: string;
+  /** Human-readable session name, auto-generated or user-renamed. */
+  session_name?: string;
 }
 export interface PresetRegion {
   label: string;
@@ -64,6 +70,10 @@ export interface LayerInfo {
 export type ComparisonMode = 'side-by-side' | 'overlay';
 export type JobStatus = 'idle' | 'queued' | 'running' | 'completed' | 'failed';
 export type ModelType = 'rife' | 'film' | 'dain' | 'lk_fallback';
+import { persist } from 'zustand/middleware';
+
+export type PlaybackMode = 'all' | 'original' | 'interpolated';
+
 interface TGISState {
   dataSource: 'nasa_gibs' | 'isro_bhuvan';
   selectedLayer: string | null;
@@ -74,6 +84,8 @@ interface TGISState {
   resolution: 512 | 1024 | 2048;
   nIntermediate: number;
   interpolationModel: ModelType;
+  stepMinutes: number | null;
+  smartSampling: boolean;
   includeLowConfidence: boolean;
   apiError: string | null;
   jobId: string | null;
@@ -81,9 +93,11 @@ interface TGISState {
   jobProgress: number;
   jobMessage: string | null;
   pipelineResult: PipelineResult | null;
+  jobHistory: PipelineResult[];
   currentFrameIndex: number;
   isPlaying: boolean;
   playbackSpeed: 0.5 | 1 | 2 | 4;
+  playbackMode: PlaybackMode;
   showMetadataOverlay: boolean;
   comparisonMode: ComparisonMode;
   showLowConfidence: boolean;
@@ -98,6 +112,8 @@ interface TGISState {
   setResolution: (r: 512 | 1024 | 2048) => void;
   setNIntermediate: (n: number) => void;
   setInterpolationModel: (m: ModelType) => void;
+  setStepMinutes: (m: number | null) => void;
+  setSmartSampling: (v: boolean) => void;
   setIncludeLowConfidence: (v: boolean) => void;
   setApiError: (e: string | null) => void;
   setJobId: (id: string | null) => void;
@@ -105,65 +121,225 @@ interface TGISState {
   setJobProgress: (p: number) => void;
   setJobMessage: (m: string | null) => void;
   setPipelineResult: (r: PipelineResult | null) => void;
-  setCurrentFrameIndex: (i: number) => void;
+  setCurrentFrameIndex: (i: number | ((prev: number) => number)) => void;
   setIsPlaying: (v: boolean) => void;
   setPlaybackSpeed: (s: 0.5 | 1 | 2 | 4) => void;
+  setPlaybackMode: (m: PlaybackMode) => void;
   setShowMetadataOverlay: (v: boolean) => void;
   setComparisonMode: (m: ComparisonMode) => void;
   setShowLowConfidence: (v: boolean) => void;
   setActivePanel: (p: 'controls' | 'analysis' | 'export') => void;
   setLayers: (l: LayerInfo[]) => void;
+  resetJob: () => void;
+  loadSession: (result: PipelineResult) => void;
+  clearSession: () => void;
+  deleteSession: (jobId: string) => void;
+  renameSession: (jobId: string, name: string) => void;
+  /** Returns frames visible under current playbackMode + showLowConfidence filter. */
+  getVisibleFrames: () => FrameMetadata[];
+  /** Returns the next valid frame index from a given index, or null if at end. */
+  getNextFrameIndex: (fromIndex: number, step: 1 | -1) => number | null;
+  /** Advance playback by one tick. Stops at end. Call from a single interval. */
+  playbackTick: () => void;
+  /** Seek to first visible frame. */
+  seekToStart: () => void;
+  /** Seek to last visible frame. */
+  seekToEnd: () => void;
 }
 const NOW = new Date();
 const TWO_HOURS_AGO = new Date(NOW.getTime() - 2 * 60 * 60 * 1000);
-export const useStore = create<TGISState>((set) => ({
-  selectedLayer: null,
-  selectedPresetKey: null,
-  timeStart: TWO_HOURS_AGO.toISOString().slice(0, 16),
-  timeEnd: NOW.toISOString().slice(0, 16),
-  bbox: null,
-  resolution: 1024,
-  nIntermediate: 4,
-  interpolationModel: 'film',
-  includeLowConfidence: false,
-  jobId: null,
-  jobStatus: 'idle',
-  jobProgress: 0,
-  jobMessage: null,
-  pipelineResult: null,
-  currentFrameIndex: 0,
-  isPlaying: false,
-  playbackSpeed: 1,
-  showMetadataOverlay: true,
-  comparisonMode: 'side-by-side',
-  showLowConfidence: false,
-  activePanel: 'controls',
-  layers: [],
-  apiError: null,
-  dataSource: 'nasa_gibs',
-  setDataSource: (src) => set({ dataSource: src, selectedLayer: null, selectedPresetKey: null, bbox: null }),
-  setSelectedLayer: (id) => set({ selectedLayer: id }),
-  setSelectedPresetKey: (key) => set({ selectedPresetKey: key }),
-  setTimeStart: (t) => set({ timeStart: t }),
-  setTimeEnd: (t) => set({ timeEnd: t }),
-  setBbox: (bbox) => set({ bbox }),
-  setResolution: (r) => set({ resolution: r }),
-  setNIntermediate: (n) => set({ nIntermediate: n }),
-  setInterpolationModel: (m) => set({ interpolationModel: m }),
-  setIncludeLowConfidence: (v) => set({ includeLowConfidence: v }),
-  setJobId: (id) => set({ jobId: id }),
-  setJobStatus: (s) => set({ jobStatus: s }),
-  setJobProgress: (p) => set({ jobProgress: p }),
-  setJobMessage: (m) => set({ jobMessage: m }),
-  setPipelineResult: (r) => set({ pipelineResult: r }),
-  setCurrentFrameIndex: (i) => set({ currentFrameIndex: i }),
-  setIsPlaying: (v) => set({ isPlaying: v }),
-  setPlaybackSpeed: (s) => set({ playbackSpeed: s }),
-  setShowMetadataOverlay: (v) => set({ showMetadataOverlay: v }),
-  setComparisonMode: (m) => set({ comparisonMode: m }),
-  setShowLowConfidence: (v) => set({ showLowConfidence: v }),
-  setActivePanel: (p) => set({ activePanel: p }),
-  setLayers: (l) => set({ layers: l }),
-  setApiError: (e) => set({ apiError: e }),
-}));
+
+export const useStore = create<TGISState>()(
+  persist(
+    (set) => ({
+      selectedLayer: null,
+      selectedPresetKey: null,
+      timeStart: TWO_HOURS_AGO.toISOString().slice(0, 16),
+      timeEnd: NOW.toISOString().slice(0, 16),
+      bbox: null,
+      resolution: 1024,
+      nIntermediate: 4,
+      interpolationModel: 'film',
+      stepMinutes: null,
+      smartSampling: true,
+      includeLowConfidence: false,
+      jobId: null,
+      jobStatus: 'idle',
+      jobProgress: 0,
+      jobMessage: null,
+      pipelineResult: null,
+      jobHistory: [],
+      currentFrameIndex: 0,
+      isPlaying: false,
+      playbackSpeed: 1,
+      playbackMode: 'all',
+      showMetadataOverlay: true,
+      comparisonMode: 'side-by-side',
+      showLowConfidence: false,
+      activePanel: 'controls',
+      layers: [],
+      apiError: null,
+      dataSource: 'nasa_gibs',
+      setDataSource: (src) => set({ dataSource: src, selectedLayer: null, selectedPresetKey: null, bbox: null }),
+      setSelectedLayer: (id) => set({ selectedLayer: id }),
+      setSelectedPresetKey: (key) => set({ selectedPresetKey: key }),
+      setTimeStart: (t) => set({ timeStart: t }),
+      setTimeEnd: (t) => set({ timeEnd: t }),
+      setBbox: (bbox) => set({ bbox }),
+      setResolution: (r) => set({ resolution: r }),
+      setNIntermediate: (n) => set({ nIntermediate: n }),
+      setInterpolationModel: (m) => set({ interpolationModel: m }),
+      setStepMinutes: (m) => set({ stepMinutes: m }),
+      setSmartSampling: (v) => set({ smartSampling: v }),
+      setIncludeLowConfidence: (v) => set({ includeLowConfidence: v }),
+      setJobId: (id) => set({ jobId: id }),
+      setJobStatus: (s) => set({ jobStatus: s }),
+      setJobProgress: (p) => set({ jobProgress: p }),
+      setJobMessage: (m) => set({ jobMessage: m }),
+      setPipelineResult: (r) => set((state) => {
+        if (!r) return { pipelineResult: null };
+        // Auto-name: "LayerShort · Region · HH:MM–HH:MM"
+        const layerShort = r.layer_id.split('_').slice(0, 2).join(' ');
+        const region = state.selectedPresetKey ?? 'Custom AOI';
+        const t0 = r.time_start ? new Date(r.time_start).toISOString().slice(11, 16) : '--:--';
+        const t1 = r.time_end ? new Date(r.time_end).toISOString().slice(11, 16) : '--:--';
+        const autoName = r.session_name ?? `${layerShort} · ${region} · ${t0}–${t1} UTC`;
+        const withName: PipelineResult = { ...r, session_name: autoName };
+        const isNew = !state.jobHistory.some(j => j.job_id === r.job_id);
+        const newHistory = isNew ? [withName, ...state.jobHistory].slice(0, 20) : state.jobHistory;
+        return { pipelineResult: withName, jobHistory: newHistory };
+      }),
+      setCurrentFrameIndex: (i) => set((state) => ({ currentFrameIndex: typeof i === 'function' ? i(state.currentFrameIndex) : i })),
+      setIsPlaying: (v) => set({ isPlaying: v }),
+      setPlaybackSpeed: (s) => set({ playbackSpeed: s }),
+      setPlaybackMode: (m) => set({ playbackMode: m, currentFrameIndex: 0 }),
+      setShowMetadataOverlay: (v) => set({ showMetadataOverlay: v }),
+      setComparisonMode: (m) => set({ comparisonMode: m }),
+      setShowLowConfidence: (v) => set({ showLowConfidence: v }),
+      setActivePanel: (p) => set({ activePanel: p }),
+      setLayers: (l) => set({ layers: l }),
+      setApiError: (e) => set({ apiError: e }),
+      resetJob: () => set({ jobStatus: 'idle', jobProgress: 0, jobMessage: null, pipelineResult: null, currentFrameIndex: 0, isPlaying: false }),
+      loadSession: (result) => set({
+        pipelineResult: result,
+        jobId: result.job_id,
+        jobStatus: 'completed',
+        selectedLayer: result.layer_id,
+        bbox: result.bbox ?? null,
+        timeStart: result.time_start ? result.time_start.slice(0, 16) : TWO_HOURS_AGO.toISOString().slice(0, 16),
+        timeEnd: result.time_end ? result.time_end.slice(0, 16) : NOW.toISOString().slice(0, 16),
+        currentFrameIndex: 0,
+        isPlaying: false,
+      }),
+      clearSession: () => set({
+        pipelineResult: null,
+        jobStatus: 'idle',
+        jobId: null,
+        jobProgress: 0,
+        currentFrameIndex: 0,
+        isPlaying: false,
+      }),
+
+      deleteSession: (jobId) => {
+        // Best-effort: ask backend to clean up disk storage (frames + metadata + video)
+        // Fire-and-forget — never block the UI on this
+        fetch(`/api/v1/pipeline/${jobId}`, { method: 'DELETE' }).catch(() => {
+          // Ignore — backend may be offline; local state is still cleaned up
+        });
+
+        set((state) => ({
+          jobHistory: state.jobHistory.filter(j => j.job_id !== jobId),
+          // If deleting the active session, clear it
+          ...(state.pipelineResult?.job_id === jobId
+            ? { pipelineResult: null, jobId: null, jobStatus: 'idle' as const, currentFrameIndex: 0, isPlaying: false }
+            : {}),
+        }));
+      },
+
+      renameSession: (jobId, name) => set((state) => ({
+        jobHistory: state.jobHistory.map(j =>
+          j.job_id === jobId ? { ...j, session_name: name } : j
+        ),
+        pipelineResult: state.pipelineResult?.job_id === jobId
+          ? { ...state.pipelineResult, session_name: name }
+          : state.pipelineResult,
+      })),
+
+      // ─── Playback engine (single source of truth) ────────────────────────────
+      getVisibleFrames: (): FrameMetadata[] => {
+        const state = useStore.getState();
+        const all: FrameMetadata[] = state.pipelineResult?.frames ?? [];
+        const { playbackMode, showLowConfidence } = state;
+        return all.filter((f: FrameMetadata): boolean => {
+          if (f.confidence_class === 'REJECTED') return false;
+          if (!showLowConfidence && f.confidence_class === 'LOW' && f.is_interpolated) return false;
+          if (playbackMode === 'original') return !f.is_interpolated;
+          if (playbackMode === 'interpolated') return f.is_interpolated;
+          return true; // 'all'
+        });
+      },
+
+      getNextFrameIndex: (fromIndex: number, step: 1 | -1): number | null => {
+        const state = useStore.getState();
+        const all: FrameMetadata[] = state.pipelineResult?.frames ?? [];
+        const { playbackMode, showLowConfidence } = state;
+        let curr = fromIndex + step;
+        while (curr >= 0 && curr < all.length) {
+          const f: FrameMetadata = all[curr];
+          if (f.confidence_class === 'REJECTED') { curr += step; continue; }
+          if (!showLowConfidence && f.confidence_class === 'LOW' && f.is_interpolated) { curr += step; continue; }
+          if (playbackMode === 'original' && f.is_interpolated) { curr += step; continue; }
+          if (playbackMode === 'interpolated' && !f.is_interpolated) { curr += step; continue; }
+          return curr;
+        }
+        return null;
+      },
+
+      playbackTick: (): void => {
+        const state = useStore.getState();
+        if (!state.isPlaying) return;
+        const next = state.getNextFrameIndex(state.currentFrameIndex, 1);
+        if (next === null) {
+          state.seekToStart();
+        } else {
+          useStore.setState({ currentFrameIndex: next });
+        }
+      },
+
+      seekToStart: (): void => {
+        const state = useStore.getState();
+        const first = state.getNextFrameIndex(-1, 1);
+        useStore.setState({ currentFrameIndex: first ?? 0 });
+      },
+
+      seekToEnd: (): void => {
+        const state = useStore.getState();
+        const len = state.pipelineResult?.frames.length ?? 0;
+        const last = state.getNextFrameIndex(len, -1);
+        if (last !== null) useStore.setState({ currentFrameIndex: last });
+      },
+    }),
+    {
+      name: 'aethergis-storage',
+      partialize: (state) => ({
+        dataSource: state.dataSource,
+        selectedLayer: state.selectedLayer,
+        selectedPresetKey: state.selectedPresetKey,
+        timeStart: state.timeStart,
+        timeEnd: state.timeEnd,
+        bbox: state.bbox,
+        resolution: state.resolution,
+        nIntermediate: state.nIntermediate,
+        interpolationModel: state.interpolationModel,
+        stepMinutes: state.stepMinutes,
+        smartSampling: state.smartSampling,
+        pipelineResult: state.pipelineResult,
+        jobHistory: state.jobHistory,
+        jobId: state.jobId,
+        playbackMode: state.playbackMode,
+      }),
+    }
+  )
+);
+
 

@@ -1,14 +1,17 @@
 /**
  * AetherGIS — Main App layout (QGIS Engineering Dashboard)
- * PRD-aligned: FILM primary model, real health status, server-down banner.
+ * Production-ready: functional menu bar, session manager, keyboard shortcuts,
+ * drift-resistant playback engine, custom-event cross-component wiring.
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MapViewer from './components/MapViewer';
 import LayerControls from './components/LayerControls';
 import AnalysisPanel from './components/AnalysisPanel';
 import TimelineScrubber from './components/TimelineScrubber';
 import ServerStatus from './components/ServerStatus';
+import MenuBar from './components/MenuBar';
+import SessionManager from './components/SessionManager';
 import { useStore } from './store/useStore';
 import { useHealth, useJobStatus, useJobResults } from './api/client';
 
@@ -18,7 +21,7 @@ const queryClient = new QueryClient({
   },
 });
 
-// Job status polling
+// ─── Job status polling ───────────────────────────────────────────────────────
 function JobPoller() {
   const { jobId, jobStatus, setJobStatus, setPipelineResult, setJobProgress, setJobMessage, setApiError } = useStore();
   const isActive = jobStatus === 'queued' || jobStatus === 'running';
@@ -46,112 +49,200 @@ function JobPoller() {
   return null;
 }
 
-// Menubar with real-time health from API
-function Menubar() {
-  const { jobStatus, jobProgress } = useStore();
-  const { data: health, isError: healthError } = useHealth();
+// ─── Drift-resistant PlaybackEngine ──────────────────────────────────────────
+/**
+ * The ONLY setInterval in the app for playback.
+ * Uses performance.now() to accumulate elapsed time, so slow frames don't
+ * cause double-advances, and fast frames stay accurate at any speed.
+ */
+function PlaybackEngine() {
+  const isPlaying   = useStore((s) => s.isPlaying);
+  const playbackSpeed = useStore((s) => s.playbackSpeed);
+  const hasFrames   = useStore((s) => (s.pipelineResult?.frames.length ?? 0) > 0);
 
-  const filmLoaded = health?.film_model_loaded ?? health?.rife_model_loaded ?? false;
-  const gpuOk = health?.gpu_available ?? false;
-  const redisOk = health?.redis_connected ?? false;
-  const apiOnline = !healthError && !!health;
+  useEffect(() => {
+    if (!isPlaying || !hasFrames) return;
 
-  const statusLabel: Record<string, string> = {
-    idle: '● Pipeline ready',
-    queued: '● Queued…',
-    running: `● Running ${jobProgress > 0 ? Math.round(jobProgress * 100) + '%' : '…'}`,
-    completed: '● Pipeline complete',
-    failed: '✕ Pipeline failed',
-  };
-  const statusCls: Record<string, string> = {
-    idle: 'sb-ready', queued: 'sb-warn', running: 'sb-warn', completed: 'sb-ready', failed: '',
-  };
+    const msPerFrame = 1000 / (10 * playbackSpeed);   // 10fps base
+    let lastTick = performance.now();
+
+    const id = setInterval(() => {
+      const now = performance.now();
+      const elapsed = now - lastTick;
+      // Advance one frame per msPerFrame of elapsed time (handles tab throttling)
+      if (elapsed >= msPerFrame * 0.85) {
+        useStore.getState().playbackTick();
+        lastTick = now;
+      }
+    }, Math.max(16, msPerFrame * 0.5));   // poll at 2× target rate, min 16ms (60fps)
+
+    return () => clearInterval(id);
+  }, [isPlaying, playbackSpeed, hasFrames]);
+
+  return null;
+}
+
+// ─── Global keyboard shortcuts ────────────────────────────────────────────────
+function KeyboardHandler() {
+  const store = useStore;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Skip if input/textarea focused
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      const s = store.getState();
+
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          s.setIsPlaying(!s.isPlaying);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          s.setIsPlaying(false);
+          { const p = s.getNextFrameIndex(s.currentFrameIndex, -1); if (p !== null) s.setCurrentFrameIndex(p); }
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          s.setIsPlaying(false);
+          { const n = s.getNextFrameIndex(s.currentFrameIndex, 1); if (n !== null) s.setCurrentFrameIndex(n); }
+          break;
+        case 'Home':
+          e.preventDefault();
+          s.setIsPlaying(false);
+          s.seekToStart();
+          break;
+        case 'End':
+          e.preventDefault();
+          s.setIsPlaying(false);
+          s.seekToEnd();
+          break;
+        case '1': s.setPlaybackSpeed(0.5); break;
+        case '2': s.setPlaybackSpeed(1); break;
+        case '3': s.setPlaybackSpeed(2); break;
+        case '4': s.setPlaybackSpeed(4); break;
+        case 'a': case 'A': s.setPlaybackMode('all'); break;
+        case 'o': case 'O': s.setPlaybackMode('original'); break;
+        case 'i': case 'I': s.setPlaybackMode('interpolated'); break;
+        case 'm': case 'M': s.setShowMetadataOverlay(!s.showMetadataOverlay); break;
+        case 'Escape': s.setIsPlaying(false); break;
+        default: break;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  return null;
+}
+
+// ─── Toolbar (upgraded with Session Manager) ──────────────────────────────────
+function Toolbar() {
+  const { selectedLayer, jobHistory, bbox, setBbox } = useStore();
+  const [showSessions, setShowSessions] = useState(false);
+
+  // Custom events from MenuBar for cross-component wiring
+  useEffect(() => {
+    const clearAoi = () => setBbox(null);
+    window.addEventListener('aethergis:clearAoi', clearAoi);
+    return () => window.removeEventListener('aethergis:clearAoi', clearAoi);
+  }, [setBbox]);
+
+  // File → New Session from MenuBar opens the session manager panel
+  useEffect(() => {
+    const openSM = () => setShowSessions(true);
+    window.addEventListener('aethergis:openSessionManager', openSM);
+    return () => window.removeEventListener('aethergis:openSessionManager', openSM);
+  }, []);
+
+  const pendingCount = jobHistory.filter(j => j.frames.length > 0).length;
 
   return (
-    <div className="menubar">
-      <div className="app-name">
-        Aether<span className="blue">GIS</span>{' '}
-        <span style={{ fontWeight: 400, color: 'var(--t3)', fontSize: 11 }}>1.0.0</span>
-      </div>
+    <>
+      <div className="toolbar">
+        <div className="tb-group">
+          {/* Session Manager trigger */}
+          <button
+            className="tb-btn tb-session-btn"
+            title="Session Manager"
+            onClick={() => setShowSessions(true)}
+          >
+            <span className="tb-btn-icon">⊞</span>
+            <span className="tb-btn-text">Sessions</span>
+            {pendingCount > 0 && (
+              <span className="tb-badge">{pendingCount}</span>
+            )}
+          </button>
+        </div>
 
-      {['File', 'View', 'Layer', 'Pipeline', 'Analysis', 'Tools', 'Help'].map(m => (
-        <div key={m} className="menu-item">{m}</div>
-      ))}
+        <div className="tb-sep" />
 
-      <div className="menubar-right">
-        <div className="status-pill">
-          <div className={`s-dot ${apiOnline ? (redisOk ? 'ok' : 'warn') : 'err'}`} />
-          NASA GIBS {!apiOnline && <span style={{ color: 'var(--red)', fontWeight: 600 }}>(offline)</span>}
+        <div className="tb-group">
+          <button className="tb-btn active" title="Draw AOI bounding box (B)">⬚</button>
+          <button className="tb-btn" title="Pan (P)">✥</button>
+          <button
+            className="tb-btn"
+            title="Zoom to AOI"
+            disabled={!bbox}
+            onClick={() => window.dispatchEvent(new CustomEvent('aethergis:zoomToAoi'))}
+          >⊙</button>
+          <button
+            className="tb-btn"
+            title="Clear AOI"
+            disabled={!bbox}
+            onClick={() => setBbox(null)}
+          >⊗</button>
         </div>
-        <div className="status-pill">
-          <div className="s-dot warn" />
-          BHUVAN P2
+
+        <div className="tb-sep" />
+
+        <div className="tb-group">
+          <div className="tb-label">SOURCE:</div>
+          <div className="tb-source-badge">
+            <span className="tb-src-dot ok" />
+            NASA GIBS
+          </div>
+          <div className="tb-source-badge" style={{ opacity: 0.45 }} title="Phase 2 — Coming soon">
+            <span className="tb-src-dot warn" />
+            MOSDAC P2
+          </div>
+          <div className="tb-source-badge" style={{ opacity: 0.3 }} title="Phase 3 — Planned">
+            <span className="tb-src-dot idle" />
+            EUMETSAT P3
+          </div>
         </div>
-        <div className="status-pill">
-          <div className={`s-dot ${apiOnline && filmLoaded ? 'ok' : apiOnline ? 'warn' : 'err'}`} />
-          FILM Engine {apiOnline ? (filmLoaded ? '' : <span style={{ color: 'var(--orange)' }}>(loading)</span>) : ''}
-        </div>
-        <div className="status-pill">
-          <div className={`s-dot ${gpuOk ? 'ok' : 'idle'}`} />
-          GPU {gpuOk ? '· RTX 4060' : '· CPU-only'}
-        </div>
-        {jobStatus === 'running' && (
-          <div style={{ width: 80, height: 4, background: 'var(--b2)', flexShrink: 0 }}>
-            <div style={{ height: '100%', background: 'var(--blue)', width: `${jobProgress * 100}%`, transition: 'width 0.4s' }} />
+
+        <div className="tb-sep" />
+
+        <div className="tb-info">CRS: <strong>EPSG:4326</strong></div>
+        {bbox && (
+          <div className="tb-info" style={{ fontFamily: 'var(--mono)', fontSize: 10 }}>
+            AOI: <strong>{bbox[0].toFixed(1)}°,{bbox[1].toFixed(1)}° – {bbox[2].toFixed(1)}°,{bbox[3].toFixed(1)}°</strong>
           </div>
         )}
-        <div className={`status-pill ${statusCls[jobStatus] || ''}`}>
-          {statusLabel[jobStatus]}
+        <div className="tb-info">
+          Layer: <strong>{selectedLayer ? selectedLayer.split('_').slice(0, 2).join(' ') : 'No selection'}</strong>
         </div>
       </div>
-    </div>
+
+      {showSessions && <SessionManager onClose={() => setShowSessions(false)} />}
+    </>
   );
 }
 
-// Toolbar
-function Toolbar() {
-  const selectedLayer = useStore(s => s.selectedLayer);
-  return (
-    <div className="toolbar">
-      <div className="tb-group">
-        <button className="tb-btn" title="New Session">📄</button>
-        <button className="tb-btn" title="Open">📂</button>
-        <button className="tb-btn" title="Save">💾</button>
-      </div>
-      <div className="tb-group">
-        <button className="tb-btn active" title="Draw BBOX (B)">⬚</button>
-        <button className="tb-btn" title="Pan (P)">✥</button>
-        <button className="tb-btn" title="Zoom In">⊕</button>
-        <button className="tb-btn" title="Zoom Out">⊖</button>
-        <button className="tb-btn" title="Zoom Full">⊡</button>
-      </div>
-      <div className="tb-group">
-        <button className="tb-btn" title="Side-by-Side">⊟</button>
-        <button className="tb-btn" title="Diff View">⊘</button>
-      </div>
-      <div className="tb-sep" />
-      <div className="tb-label">SOURCE:</div>
-      <select className="tb-source-select" defaultValue="NASA GIBS">
-        <option>NASA GIBS</option>
-        <option disabled>ISRO Bhuvan (Phase 2)</option>
-      </select>
-      <div className="tb-sep" />
-      <div className="tb-info">CRS: <strong>EPSG:4326</strong></div>
-      <div className="tb-info">Scale: <strong>1:4,500,000</strong></div>
-      <div className="tb-info">
-        Layer: <strong>{selectedLayer ? selectedLayer.split('_').slice(0, 2).join(' ') : 'No selection'}</strong>
-      </div>
-    </div>
-  );
-}
-
-// Status bar
+// ─── Status bar ────────────────────────────────────────────────────────────────
 function StatusBar() {
   const { pipelineResult, jobStatus, bbox, apiError } = useStore();
   const { data: health } = useHealth();
 
   const statusCls = jobStatus === 'completed' ? 'sb-ready' : jobStatus === 'failed' ? '' : jobStatus !== 'idle' ? 'sb-warn' : 'sb-ready';
-  const statusLabel = jobStatus === 'completed' ? '● Pipeline complete' : jobStatus === 'failed' ? '✕ Pipeline failed' : jobStatus !== 'idle' ? '● Running…' : '● Pipeline ready';
+  const statusLabel =
+    jobStatus === 'completed' ? '● Pipeline complete' :
+    jobStatus === 'failed'    ? '✕ Pipeline failed' :
+    jobStatus !== 'idle'      ? '● Running…' :
+                                '● Ready';
 
   return (
     <div className="statusbar">
@@ -164,12 +255,13 @@ function StatusBar() {
       ) : (
         <div className="sb-seg" style={{ color: 'var(--t4)', fontStyle: 'italic' }}>No AOI selected</div>
       )}
-      {pipelineResult && (
+      {pipelineResult?.frames.length ? (
         <div className="sb-seg">
-          Frames: <strong>{pipelineResult.frames?.length}</strong>
+          Frames: <strong>{pipelineResult.frames.length}</strong>
           {' · '}PSNR: <strong>{pipelineResult.metrics?.avg_psnr?.toFixed(1) ?? '—'} dB</strong>
+          {' · '}SSIM: <strong>{pipelineResult.metrics?.avg_ssim?.toFixed(3) ?? '—'}</strong>
         </div>
-      )}
+      ) : null}
       {apiError && (
         <div className="sb-seg" style={{ color: 'var(--red)' }}>
           ⚠ {apiError.length > 60 ? apiError.slice(0, 60) + '…' : apiError}
@@ -184,12 +276,14 @@ function StatusBar() {
   );
 }
 
-// Main inner app
-export default function AppInner() {
+// ─── Main inner app ───────────────────────────────────────────────────────────
+function AppInner() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', overflow: 'hidden' }}>
       <JobPoller />
-      <Menubar />
+      <PlaybackEngine />
+      <KeyboardHandler />
+      <MenuBar />
       <Toolbar />
       {/* Server-down / partial-degradation banner */}
       <ServerStatus />
@@ -213,11 +307,9 @@ export default function AppInner() {
 
         {/* CENTER COLUMN */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--b1)' }}>
-          {/* Map */}
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: 'var(--map-bg)', minHeight: 0 }}>
             <MapViewer />
           </div>
-          {/* Timeline */}
           <TimelineScrubber />
         </div>
 
@@ -245,4 +337,3 @@ export function App() {
     </QueryClientProvider>
   );
 }
-

@@ -1,4 +1,4 @@
-﻿"""AetherGIS Backend - Configuration (pydantic-settings)"""
+"""AetherGIS Backend - Configuration (pydantic-settings)"""
 from __future__ import annotations
 
 from functools import lru_cache
@@ -31,10 +31,17 @@ class Settings(BaseSettings):
     celery_broker_url: str = 'redis://localhost:6379/0'
     celery_result_backend: str = 'redis://localhost:6379/1'
 
-    data_dir: Path = Path('./backend/data')
-    exports_dir: Path = Path('./backend/data/exports')
-    cache_dir: Path = Path('./backend/data/cache')
-    ai_models_dir: Path = Path('./backend/app/ai_models')
+    # ── Storage paths anchored to this file so CWD doesn't matter ──────────
+    # config.py lives at  backend/app/config.py
+    # _BACKEND_ROOT        backend/
+    # _PROJECT_ROOT        project root (Major Project/)
+    _BACKEND_ROOT: Path = Path(__file__).resolve().parent.parent
+    _PROJECT_ROOT: Path = _BACKEND_ROOT.parent
+
+    data_dir: Path = _BACKEND_ROOT / 'data'
+    exports_dir: Path = _BACKEND_ROOT / 'data' / 'exports'
+    cache_dir: Path = _BACKEND_ROOT / 'data' / 'cache'
+    ai_models_dir: Path = _BACKEND_ROOT / 'app' / 'ai_models'
 
     cuda_device: str = 'cuda'
     rife_model_path: Path = Path(__file__).parent.parent / 'app' / 'ai_models' / 'rife' / 'flownet.pkl'

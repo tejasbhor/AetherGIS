@@ -23,13 +23,18 @@ out/
 .env.*.local
 
 # Project Specific
-exports/
 backend/app/ai_models/film/*.pt
 backend/app/ai_models/rife/*.pkl
 tmp_*.py
 test_output.txt
 test_results.txt
 uv.lock
+
+# Runtime data — never commit these
+backend/data/exports/
+backend/data/cache/
+backend/data/*.zip
+backend/data/*.mp4
 
 # OS
 .DS_Store

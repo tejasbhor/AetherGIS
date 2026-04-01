@@ -1,57 +1,50 @@
 /**
- * AetherGIS — Playback controls: play/pause/step/speed + metadata toggle.
+ * AetherGIS — PlaybackControls (map-view transport bar)
+ * Uses the centralized PlaybackEngine + store actions. NO setInterval here.
  */
-import { useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 
 export default function PlaybackControls() {
   const {
     pipelineResult,
-    currentFrameIndex, setCurrentFrameIndex,
-    isPlaying, setIsPlaying,
-    playbackSpeed, setPlaybackSpeed,
-    showMetadataOverlay, setShowMetadataOverlay,
-    showLowConfidence, setShowLowConfidence,
+    currentFrameIndex,
+    setCurrentFrameIndex,
+    isPlaying,
+    setIsPlaying,
+    playbackSpeed,
+    setPlaybackSpeed,
+    playbackMode,
+    setPlaybackMode,
+    getNextFrameIndex,
+    seekToStart,
+    seekToEnd,
   } = useStore();
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const frames = pipelineResult?.frames || [];
+  const frames = pipelineResult?.frames ?? [];
   const totalFrames = frames.length;
   const currentMeta = frames[currentFrameIndex];
+  const hasResult = totalFrames > 0;
 
-  // Auto-play timer
-  useEffect(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    if (!isPlaying || totalFrames === 0) return;
-
-    const delay = Math.round(1000 / (10 * playbackSpeed)); // base 10fps
-    intervalRef.current = setInterval(() => {
-      const { currentFrameIndex: liveFrameIndex } = useStore.getState();
-      if (liveFrameIndex >= totalFrames - 1) {
-        setIsPlaying(false);
-        return;
-      }
-      setCurrentFrameIndex(liveFrameIndex + 1);
-    }, delay);
-
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isPlaying, playbackSpeed, totalFrames]);
+  // Delegate all navigation to store actions (stale-closure-safe)
+  const handlePlayPause = () => {
+    if (!isPlaying && getNextFrameIndex(currentFrameIndex, 1) === null) seekToStart();
+    setIsPlaying(!isPlaying);
+  };
 
   const handleStepBack = () => {
     setIsPlaying(false);
-    setCurrentFrameIndex(Math.max(0, currentFrameIndex - 1));
+    const prev = getNextFrameIndex(currentFrameIndex, -1);
+    if (prev !== null) setCurrentFrameIndex(prev);
   };
 
   const handleStepForward = () => {
     setIsPlaying(false);
-    setCurrentFrameIndex(Math.min(totalFrames - 1, currentFrameIndex + 1));
+    const next = getNextFrameIndex(currentFrameIndex, 1);
+    if (next !== null) setCurrentFrameIndex(next);
   };
 
-  const handlePlayPause = () => {
-    if (currentFrameIndex >= totalFrames - 1) setCurrentFrameIndex(0);
-    setIsPlaying(!isPlaying);
-  };
+  const canBack = hasResult && getNextFrameIndex(currentFrameIndex, -1) !== null;
+  const canFwd  = hasResult && getNextFrameIndex(currentFrameIndex, 1) !== null;
 
   const iconBtn = (label: string, onClick: () => void, disabled = false, active = false) => (
     <button
@@ -64,8 +57,6 @@ export default function PlaybackControls() {
       {label}
     </button>
   );
-
-  const hasResult = totalFrames > 0;
 
   return (
     <div style={{
@@ -82,8 +73,8 @@ export default function PlaybackControls() {
 
       {/* Transport controls */}
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        {iconBtn('⏮', () => { setIsPlaying(false); setCurrentFrameIndex(0); }, !hasResult)}
-        {iconBtn('⏪', handleStepBack, !hasResult || currentFrameIndex === 0)}
+        {iconBtn('⏮', () => { setIsPlaying(false); seekToStart(); }, !hasResult)}
+        {iconBtn('⏪', handleStepBack, !canBack)}
         <button
           className="btn btn-primary btn-icon"
           onClick={handlePlayPause}
@@ -92,8 +83,8 @@ export default function PlaybackControls() {
         >
           {isPlaying ? '⏸' : '▶'}
         </button>
-        {iconBtn('⏩', handleStepForward, !hasResult || currentFrameIndex >= totalFrames - 1)}
-        {iconBtn('⏭', () => { setIsPlaying(false); setCurrentFrameIndex(totalFrames - 1); }, !hasResult)}
+        {iconBtn('⏩', handleStepForward, !canFwd)}
+        {iconBtn('⏭', () => { setIsPlaying(false); seekToEnd(); }, !hasResult)}
       </div>
 
       {/* Speed selector */}
@@ -127,26 +118,17 @@ export default function PlaybackControls() {
 
       {/* Toggles */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <div
-          className="toggle-wrap"
-          onClick={() => setShowMetadataOverlay(!showMetadataOverlay)}
-          style={{ cursor: 'pointer' }}
-          title="Toggle metadata overlay"
+        <select
+          value={playbackMode}
+          onChange={(e) => { setIsPlaying(false); setPlaybackMode(e.target.value as any); }}
+          style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 4, fontSize: 11, padding: '4px 8px' }}
         >
-          <div className={`toggle${showMetadataOverlay ? ' on' : ''}`} />
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Overlay</span>
-        </div>
-        <div
-          className="toggle-wrap"
-          onClick={() => setShowLowConfidence(!showLowConfidence)}
-          style={{ cursor: 'pointer' }}
-          title="Show low confidence frames"
-        >
-          <div className={`toggle${showLowConfidence ? ' on' : ''}`} />
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Low-Conf</span>
-        </div>
+          <option value="all">All Frames</option>
+          <option value="original">Original Only</option>
+          <option value="interpolated">AI Generated</option>
+        </select>
+
       </div>
     </div>
   );
 }
-

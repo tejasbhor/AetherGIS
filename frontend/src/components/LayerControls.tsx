@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { useHealth, useLayerCapabilities, useLayers, useSubmitPipeline } from '../api/client';
+import { cancelPipeline, useHealth, useLayerCapabilities, useLayers, useSubmitPipeline } from '../api/client';
 import { useStore } from '../store/useStore';
 import type { LayerInfo, PresetRegion } from '../store/useStore';
 import { applyLayerPreset, chooseRecommendedLayer, getDefaultPresetKey } from '../utils/layerDefaults';
@@ -102,11 +102,16 @@ export default function LayerControls() {
     setNIntermediate,
     interpolationModel,
     setInterpolationModel,
+    stepMinutes,
+    setStepMinutes,
+    smartSampling,
+    setSmartSampling,
     includeLowConfidence,
     setIncludeLowConfidence,
     showLowConfidence,
     setShowLowConfidence,
     jobStatus,
+    jobId,
     setJobId,
     setJobStatus,
     setJobProgress,
@@ -116,6 +121,7 @@ export default function LayerControls() {
     setLayers,
     dataSource,
     setDataSource,
+    resetJob,
   } = useStore();
 
   const { data: fetchedLayers, isLoading: layersLoading, isError: layersError } = useLayers(dataSource);
@@ -216,7 +222,8 @@ export default function LayerControls() {
         time_end: new Date(timeEnd).toISOString(),
         resolution,
         interpolation_model: interpolationModel,
-        n_intermediate: nIntermediate,
+        n_intermediate: smartSampling ? 4 : nIntermediate, // Logical placeholder for smart
+        step_minutes: smartSampling ? null : stepMinutes,
         include_low_confidence: includeLowConfidence,
       });
       setJobId(result.job_id);
@@ -228,6 +235,21 @@ export default function LayerControls() {
       setJobStatus('failed');
       setJobMessage(msg);
     }
+  };
+
+  const handleCancelPipeline = async () => {
+    if (!window.confirm("Do you want to cancel the generation?")) return;
+    
+    if (jobId && (jobStatus === 'running' || jobStatus === 'queued')) {
+      try {
+        await cancelPipeline(jobId);
+      } catch (err) {
+        console.warn("Cancel request failed", err);
+      }
+    }
+    
+    resetJob();
+    setApiError("Pipeline generation cancelled.");
   };
 
   const renderLayerList = () => {
@@ -255,7 +277,20 @@ export default function LayerControls() {
       <div key={layer.layer_id} className={`layer-row${selectedLayer === layer.layer_id ? ' active' : ''}`} onClick={() => setSelectedLayer(layer.layer_id)}>
         <div className={`layer-vis${selectedLayer === layer.layer_id ? ' checked' : ''}`}>{selectedLayer === layer.layer_id ? 'OK' : '[]'}</div>
         <div className="layer-swatch" style={{ background: LAYER_SWATCHES[layer.layer_id] || '#888' }} />
-        <div className="layer-name-text">{layer.name}</div>
+        <div className="layer-name-text">
+          {layer.name}
+          <span style={{ 
+            fontSize: 7.5, 
+            marginLeft: 5, 
+            padding: '1px 3px', 
+            borderRadius: 2, 
+            background: layer.temporal_resolution_minutes < 60 ? 'var(--teal-bg)' : 'var(--blue-bg)',
+            color: layer.temporal_resolution_minutes < 60 ? 'var(--teal)' : 'var(--blue)',
+            border: `1px solid ${layer.temporal_resolution_minutes < 60 ? 'var(--teal-lt)' : 'var(--blue-lt)'}`
+          }}>
+            {layer.temporal_resolution_minutes < 60 ? 'GEO' : 'LEO'}
+          </span>
+        </div>
         <div className="layer-cadence">{formatCadence(layer.temporal_resolution_minutes)}</div>
       </div>
     ));
@@ -283,6 +318,7 @@ export default function LayerControls() {
 
   return (
     <>
+      <div style={{ pointerEvents: isRunning ? 'none' : 'auto', opacity: isRunning ? 0.65 : 1, transition: 'opacity 0.2s' }}>
       <div style={{ display: 'flex', borderBottom: '1px solid var(--b3)', background: 'var(--b1)' }}>
         {(['nasa_gibs', 'isro_bhuvan'] as const).map((src) => (
           <button key={src} style={{ flex: 1, border: 'none', borderRight: '1px solid var(--b3)', padding: '6px 4px', fontFamily: 'var(--cond)', fontSize: 10, background: dataSource === src ? 'var(--b2)' : 'transparent', color: dataSource === src ? 'var(--t1)' : 'var(--t4)', fontWeight: dataSource === src ? 600 : 400, cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase' }} onClick={() => setDataSource(src)}>
@@ -366,7 +402,24 @@ export default function LayerControls() {
         <div className="form-row"><span className="form-label">Start (UTC)</span><input type="datetime-local" className="inp" value={timeStart} onChange={(e) => setTimeStart(e.target.value)} /></div>
         <div className="form-row"><span className="form-label">End (UTC)</span><input type="datetime-local" className="inp" value={timeEnd} onChange={(e) => setTimeEnd(e.target.value)} style={isTimeInvalid ? { borderColor: 'var(--red)' } : {}} /></div>
         {isTimeInvalid && <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--red)', marginBottom: 4 }}>End time must be after start time.</div>}
-        <div className="form-row"><span className="form-label">Step</span><select className="inp"><option>{nativeStep ? `Auto (${formatCadence(nativeStep)})` : 'Auto (layer native)'}</option></select></div>
+        <div className="form-row">
+          <span className="form-label">Step</span>
+          <select className="inp" value={stepMinutes || ''} onChange={(e) => setStepMinutes(e.target.value ? Number(e.target.value) : null)} disabled={smartSampling}>
+            <option value="">{nativeStep ? `Auto (${formatCadence(nativeStep)})` : 'Auto (layer native)'}</option>
+            {[10, 15, 30, 60, 120, 240, 480, 1440].map(m => (
+              <option key={m} value={m}>{formatCadence(m)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="check-row" onClick={() => setSmartSampling(!smartSampling)} style={{ marginTop: 4 }}>
+          <input type="checkbox" id="smart-sampling" checked={smartSampling} readOnly />
+          <label className="check-label" htmlFor="smart-sampling">Smart Temporal Sampling (Recommended)</label>
+        </div>
+        {smartSampling && (
+           <div style={{ fontFamily: 'var(--mono)', fontSize: 8.5, color: 'var(--teal)', background: 'var(--teal-bg)', border: '1px solid var(--teal-lt)', padding: '4px 6px', marginTop: 4 }}>
+             <strong>Smart Mode Active:</strong> Balancing frame density and motion accuracy based on layer cadence.
+           </div>
+        )}
         {layerCapabilities && (
           <div style={{ fontFamily: 'var(--mono)', fontSize: 8.5, color: 'var(--t4)', lineHeight: 1.5, marginTop: 4, padding: '4px', background: 'var(--b2)', borderRadius: 3 }}>
             <div>Latest Server Data: <strong>{formatUtc(layerCapabilities.latest_available_time) ?? 'Unknown'} UTC</strong></div>
@@ -393,9 +446,18 @@ export default function LayerControls() {
         </div>
       </div>
 
+      </div>
+
       <div className="run-panel">
         {runBlockReason && !isRunning && <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: serverDown ? 'var(--red)' : 'var(--orange)', background: serverDown ? 'var(--red-bg)' : 'var(--orng-bg)', border: `1px solid ${serverDown ? 'var(--red-lt)' : 'var(--orng-lt)'}`, padding: '3px 6px', marginBottom: 5 }}>{runBlockReason}</div>}
-        <div className="run-row"><button className="btn-primary" style={{ flex: 1, opacity: canRun ? 1 : 0.65 }} onClick={handleRunPipeline} disabled={!canRun}>{isRunning ? 'RUNNING PIPELINE...' : 'Run Pipeline'}</button></div>
+        {isRunning ? (
+          <div className="run-row" style={{ gap: 8 }}>
+             <button className="btn-primary" style={{ flex: 1, opacity: 0.65 }} disabled>RUNNING PIPELINE...</button>
+             <button className="btn-secondary" style={{ color: 'var(--red)', border: '1px solid var(--red-lt)', background: 'var(--red-bg)', padding: '0 12px', borderRadius: 4, cursor: 'pointer', fontFamily: 'var(--cond)', fontSize: 13, fontWeight: 600 }} onClick={handleCancelPipeline}>Cancel</button>
+           </div>
+        ) : (
+          <div className="run-row"><button className="btn-primary" style={{ flex: 1, opacity: canRun ? 1 : 0.65 }} onClick={handleRunPipeline} disabled={!canRun}>Run Pipeline</button></div>
+        )}
         <div className="run-info">{(selectedLayerInfo?.name ?? selectedLayer ?? 'No layer selected')} · {interpolationModel.toUpperCase()} · {nIntermediate} frame(s)/gap</div>
       </div>
     </>

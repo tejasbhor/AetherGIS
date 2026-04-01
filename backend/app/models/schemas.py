@@ -1,4 +1,4 @@
-﻿"""AetherGIS â€” Pydantic request/response schemas."""
+"""AetherGIS â€” Pydantic request/response schemas."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -67,6 +67,7 @@ class PipelineRunRequest(BaseModel):
     resolution: Resolution = Resolution.medium
     interpolation_model: InterpolationModel = InterpolationModel.rife
     n_intermediate: int = Field(default=4, ge=1, le=8)
+    step_minutes: Optional[int] = Field(None, ge=1, le=1440)
     include_low_confidence: bool = False
 
     @field_validator("bbox")
