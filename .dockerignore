@@ -1,0 +1,10 @@
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.git
+frontend/node_modules
+dist
+backend/data/exports/*
+backend/data/cache/*
+# Do NOT ignore uv.lock or pyproject.toml as they are required for uv sync

@@ -1,0 +1,137 @@
+version: "3.9"
+
+x-common-env: &common-env
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+  CUDA_VISIBLE_DEVICES: "0"
+
+x-common-volumes: &common-volumes
+  - ./backend:/app/backend
+  - ./backend/data:/app/backend/data
+  - ./.env:/app/.env
+
+services:
+  # ── Redis (job queue + cache + rate-limiting) ───────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: AetherGIS_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
+      --save 60 1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── API server ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: AetherGIS_api
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *common-env
+    volumes: *common-volumes
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Celery worker — HIGH priority (GPU) ───────────────────────────────────
+  celery_worker_high:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: AetherGIS_worker_high
+    command: >
+      celery -A backend.app.tasks.celery_app.celery_app worker
+      --queues=high
+      --concurrency=1
+      --loglevel=info
+      --hostname=worker-high@%h
+    environment:
+      <<: *common-env
+    volumes: *common-volumes
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # ── Celery worker — NORMAL priority ───────────────────────────────────────
+  celery_worker_normal:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: AetherGIS_worker_normal
+    command: >
+      celery -A backend.app.tasks.celery_app.celery_app worker
+      --queues=normal,low
+      --concurrency=2
+      --loglevel=info
+      --hostname=worker-normal@%h
+    environment:
+      <<: *common-env
+    volumes: *common-volumes
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Celery Beat — periodic metric aggregation ──────────────────────────────
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: AetherGIS_beat
+    command: >
+      celery -A backend.app.tasks.celery_app.celery_app beat
+      --loglevel=info
+    environment:
+      <<: *common-env
+    volumes: *common-volumes
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Flower — Celery monitoring UI ─────────────────────────────────────────
+  flower:
+    image: mher/flower:2.0
+    container_name: AetherGIS_flower
+    ports:
+      - "5555:5555"
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      FLOWER_PORT: 5555
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:
