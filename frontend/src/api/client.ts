@@ -35,7 +35,7 @@ export interface LayerCapabilities {
 }
 
 export interface PipelineRunPayload {
-  data_source: 'nasa_gibs' | 'isro_bhuvan';
+  data_source: 'nasa_gibs' | 'isro_bhuvan' | 'insat';
   layer_id: string;
   bbox: number[];
   time_start: string;

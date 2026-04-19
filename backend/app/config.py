@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     cache_dir: Path = _BACKEND_ROOT / 'data' / 'cache'
     ai_models_dir: Path = _BACKEND_ROOT / 'app' / 'ai_models'
 
-    cuda_device: str = 'cuda'
+    cuda_device: str = 'mps'
     rife_model_path: Path = Path(__file__).parent.parent / 'app' / 'ai_models' / 'rife' / 'flownet.pkl'
     film_model_path: Path = Path(__file__).parent.parent / 'app' / 'ai_models' / 'film' / 'film_net_fp32.pt'
     inference_timeout_seconds: int = 60
@@ -85,6 +85,7 @@ class Settings(BaseSettings):
     # MODULE 3 — Providers
     himawari_wms_url: str = 'https://www.eorc.jaxa.jp/ptree/himawari-8/api'
     mosdac_wms_url: str = 'https://mosdac.gov.in/live/wms'
+    mosdac_api_key: str = ''          # Optional — set in .env for higher-rate access
 
     def ensure_dirs(self) -> None:
         for directory in [

@@ -113,8 +113,8 @@ async def health_check() -> HealthResponse:
     except Exception:
         pass
 
-    gpu_ok = torch.cuda.is_available()
-    gpu_device_name = torch.cuda.get_device_name(0) if gpu_ok else None
+    gpu_ok = torch.cuda.is_available() or (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available())
+    gpu_device_name = "Apple Metal (MPS)" if not torch.cuda.is_available() and hasattr(torch.backends, 'mps') and torch.backends.mps.is_available() else (torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)
     rife_loaded = get_engine('rife').is_loaded
     film_loaded = get_engine('film').is_loaded
 

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 class DataSource(str, Enum):
     nasa_gibs = "nasa_gibs"
     isro_bhuvan = "isro_bhuvan"
+    insat = "insat"
 
 
 class InterpolationModel(str, Enum):
@@ -102,6 +103,7 @@ class FrameMetadata(BaseModel):
     gap_category: Optional[GapCategory] = None
     psnr: Optional[float] = None
     ssim: Optional[float] = None
+    provider_source: Optional[str] = None
 
 
 # â”€â”€ Quality Metrics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

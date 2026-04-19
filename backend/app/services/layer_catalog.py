@@ -7,7 +7,7 @@ from typing import Any
 import httpx
 
 from backend.app.config import get_settings
-from backend.app.services.wms_client import BHUVAN_LAYERS, GIBS_LAYERS
+from backend.app.services.wms_client import BHUVAN_LAYERS, GIBS_LAYERS, INSAT_LAYERS
 from backend.app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -99,6 +99,18 @@ async def get_layer_catalog(data_source: str | None = None) -> list[dict[str, An
                 **meta,
             }
             for layer_id, meta in BHUVAN_LAYERS.items()
+        ])
+
+    if not data_source or data_source == 'insat':
+        records.extend([
+            {
+                'layer_id': layer_id,
+                'data_source': 'insat',
+                'crs': 'EPSG:4326',
+                'availability_checked_live': False,
+                **meta,
+            }
+            for layer_id, meta in INSAT_LAYERS.items()
         ])
 
     return records

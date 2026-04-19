@@ -321,9 +321,9 @@ export default function LayerControls() {
     <>
       <div style={{ pointerEvents: isRunning ? 'none' : 'auto', opacity: isRunning ? 0.65 : 1, transition: 'opacity 0.2s' }}>
       <div style={{ display: 'flex', borderBottom: '1px solid var(--b3)', background: 'var(--b1)' }}>
-        {(['nasa_gibs', 'isro_bhuvan'] as const).map((src) => (
+        {(['insat', 'nasa_gibs', 'isro_bhuvan'] as const).map((src) => (
           <button key={src} style={{ flex: 1, border: 'none', borderRight: '1px solid var(--b3)', padding: '6px 4px', fontFamily: 'var(--cond)', fontSize: 10, background: dataSource === src ? 'var(--b2)' : 'transparent', color: dataSource === src ? 'var(--t1)' : 'var(--t4)', fontWeight: dataSource === src ? 600 : 400, cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase' }} onClick={() => setDataSource(src)}>
-            {src === 'nasa_gibs' ? 'NASA GIBS' : 'ISRO BHUVAN'}
+            {src === 'nasa_gibs' ? 'NASA GIBS' : src === 'insat' ? 'MOSDAC (INSAT)' : 'ISRO BHUVAN'}
           </button>
         ))}
       </div>

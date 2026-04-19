@@ -10,7 +10,7 @@ from typing import Optional
 import httpx
 
 from backend.app.config import get_settings
-from backend.app.services.wms_client import BHUVAN_LAYERS, GIBS_LAYERS
+from backend.app.services.wms_client import BHUVAN_LAYERS, GIBS_LAYERS, INSAT_LAYERS
 from backend.app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -18,8 +18,13 @@ settings = get_settings()
 
 _CAPS_TTL_SECONDS = 30 * 60
 _WMS_XML_CACHE: tuple[float, ET.Element] | None = None
+_MOSDAC_XML_CACHE: tuple[float, ET.Element] | None = None
 _DESCRIBE_DOMAINS_CACHE: dict[str, tuple[float, ET.Element]] = {}
 _LAYER_CACHE: dict[str, tuple[float, 'ParsedLayerCapabilities']] = {}
+
+# INSAT-3D launched Feb 2014; INSAT-3DR launched Sep 2016
+_INSAT3D_EPOCH  = datetime(2014, 2, 15, tzinfo=timezone.utc)
+_INSAT3DR_EPOCH = datetime(2016, 9, 28, tzinfo=timezone.utc)
 
 _DURATION_RE = re.compile(
     r'^P(?:(?P<days>\d+)D)?(?:T(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?)?$'
@@ -88,6 +93,50 @@ async def _get_wms_capabilities_root() -> ET.Element:
 
     _WMS_XML_CACHE = (now, root)
     return root
+
+
+async def _get_mosdac_capabilities_root() -> ET.Element:
+    """
+    Fetch and cache MOSDAC WMS GetCapabilities XML.
+
+    MOSDAC endpoint: https://mosdac.gov.in/live/wms?SERVICE=WMS&REQUEST=GetCapabilities
+    Each INSAT-3D/3DR layer advertises its time extent in a <Extent name="time">
+    or <Dimension name="time"> element, parsed exactly the same way as GIBS.
+
+    Cache TTL mirrors the GIBS TTL (30 min) — MOSDAC updates composites every 30 min.
+    """
+    global _MOSDAC_XML_CACHE
+    now = time.time()
+    if _MOSDAC_XML_CACHE and now - _MOSDAC_XML_CACHE[0] < _CAPS_TTL_SECONDS:
+        return _MOSDAC_XML_CACHE[1]
+
+    params: dict[str, str] = {
+        'SERVICE': 'WMS',
+        'REQUEST': 'GetCapabilities',
+        'VERSION': '1.1.1',
+    }
+    if settings.mosdac_api_key:
+        params['key'] = settings.mosdac_api_key
+
+    async with httpx.AsyncClient(timeout=settings.wms_timeout_seconds, follow_redirects=True) as client:
+        response = await client.get(settings.mosdac_wms_url, params=params)
+        response.raise_for_status()
+        root = ET.fromstring(response.text)
+
+    _MOSDAC_XML_CACHE = (now, root)
+    return root
+
+
+async def _find_mosdac_layer_element(layer_id: str) -> Optional[ET.Element]:
+    """Find a named Layer element inside the MOSDAC GetCapabilities XML."""
+    root = await _get_mosdac_capabilities_root()
+    for layer in root.iter():
+        if not layer.tag.endswith('Layer'):
+            continue
+        name = _find_direct_child_text(layer, 'Name')
+        if name == layer_id:
+            return layer
+    return None
 
 
 async def _find_nasa_layer_element(layer_id: str) -> Optional[ET.Element]:
@@ -206,12 +255,44 @@ def _prefer_more_precise(
     return wms_start, wms_end, wms_step, False
 
 
+def _insat_static_fallback(layer_id: str, info: dict) -> ParsedLayerCapabilities:
+    """
+    Return a static-epoch capability record for INSAT layers when MOSDAC
+    is unreachable.  Uses known launch dates:
+        INSAT-3D  → 2014-02-15
+        INSAT-3DR → 2016-09-28
+    The 'latest available' time is the most recent :00/:30 UTC slot, which
+    is the correct format for MOSDAC GetMap TIME= requests.
+    """
+    step_minutes = 30  # INSAT-3D and 3DR both produce 30-min composites
+    now_utc = datetime.now(timezone.utc)
+    # Round down to most recent 30-min slot
+    slot_minute = 0 if now_utc.minute < 30 else 30
+    latest = now_utc.replace(minute=slot_minute, second=0, microsecond=0) - timedelta(minutes=30)
+
+    epoch = _INSAT3DR_EPOCH if layer_id.startswith('INSAT3DR') else _INSAT3D_EPOCH
+    suggested_start, suggested_end = _suggest_window(latest, step_minutes)
+
+    return ParsedLayerCapabilities(
+        layer_id=layer_id,
+        time_start=epoch,
+        time_end=latest,
+        latest_available_time=latest,
+        suggested_time_start=suggested_start,
+        suggested_time_end=suggested_end,
+        step_minutes=step_minutes,
+        temporal_resolution_minutes=float(step_minutes),
+        time_source_live=False,
+    )
+
+
 async def get_layer_capabilities_live(layer_id: str) -> ParsedLayerCapabilities:
     cached = _LAYER_CACHE.get(layer_id)
     now = time.time()
     if cached and now - cached[0] < _CAPS_TTL_SECONDS:
         return cached[1]
 
+    # ── NASA GIBS layers ──────────────────────────────────────────────────────
     if layer_id in GIBS_LAYERS:
         info = GIBS_LAYERS[layer_id]
         try:
@@ -273,6 +354,7 @@ async def get_layer_capabilities_live(layer_id: str) -> ParsedLayerCapabilities:
             _LAYER_CACHE[layer_id] = (now, parsed)
             return parsed
 
+    # ── ISRO Bhuvan layers ────────────────────────────────────────────────────
     if layer_id in BHUVAN_LAYERS:
         info = BHUVAN_LAYERS[layer_id]
         step_minutes = max(1, round(info['temporal_resolution_minutes']))
@@ -292,5 +374,67 @@ async def get_layer_capabilities_live(layer_id: str) -> ParsedLayerCapabilities:
         _LAYER_CACHE[layer_id] = (now, parsed)
         return parsed
 
-    raise KeyError(layer_id)
+    # ── INSAT / MOSDAC layers ─────────────────────────────────────────────────
+    if layer_id in INSAT_LAYERS:
+        info = INSAT_LAYERS[layer_id]
+        try:
+            layer_el = await _find_mosdac_layer_element(layer_id)
 
+            if layer_el is not None:
+                # MOSDAC responded — parse its time extent
+                extent_text = _extract_time_extent_text(layer_el)
+                time_start, time_end, step_minutes = _parse_time_extent(extent_text or '', 30)
+
+                # Clamp start to known launch epoch
+                epoch = _INSAT3DR_EPOCH if layer_id.startswith('INSAT3DR') else _INSAT3D_EPOCH
+                if time_start is None or time_start < epoch:
+                    time_start = epoch
+
+                latest = time_end
+                if latest is None:
+                    # Capabilities present but no time extent — fall back to
+                    # the most recent :00/:30 slot
+                    now_utc = datetime.now(timezone.utc)
+                    slot_minute = 0 if now_utc.minute < 30 else 30
+                    latest = now_utc.replace(minute=slot_minute, second=0, microsecond=0) - timedelta(minutes=30)
+                    time_end = latest
+
+                step_minutes = step_minutes or 30
+                suggested_start, suggested_end = _suggest_window(latest, step_minutes)
+
+                parsed = ParsedLayerCapabilities(
+                    layer_id=layer_id,
+                    time_start=time_start,
+                    time_end=time_end,
+                    latest_available_time=latest,
+                    suggested_time_start=suggested_start,
+                    suggested_time_end=suggested_end,
+                    step_minutes=step_minutes,
+                    temporal_resolution_minutes=float(step_minutes),
+                    time_source_live=True,
+                )
+            else:
+                # Layer not found in MOSDAC capabilities — use known-good
+                # static epoch with a warning
+                logger.warning(
+                    'INSAT layer not found in MOSDAC GetCapabilities; using static fallback',
+                    layer_id=layer_id,
+                    mosdac_url=settings.mosdac_wms_url,
+                )
+                parsed = _insat_static_fallback(layer_id, info)
+
+            _LAYER_CACHE[layer_id] = (now, parsed)
+            return parsed
+
+        except Exception as exc:
+            logger.warning(
+                'MOSDAC GetCapabilities failed; using static launch-date fallback for INSAT layer',
+                layer_id=layer_id,
+                mosdac_url=settings.mosdac_wms_url,
+                error=str(exc),
+            )
+            parsed = _insat_static_fallback(layer_id, info)
+            _LAYER_CACHE[layer_id] = (now, parsed)
+            return parsed
+
+    raise KeyError(layer_id)

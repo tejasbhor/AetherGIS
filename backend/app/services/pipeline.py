@@ -26,7 +26,7 @@ from backend.app.services.confidence import compute_frame_stability_index, compu
 from backend.app.services.interpolation import get_engine, interpolate_pair_with_segmentation
 from backend.app.services.preprocessing import preprocess_sequence
 from backend.app.services.video_gen import frames_to_video, save_frame_png, write_metadata_sidecar
-from backend.app.services.wms_client import BHUVAN_LAYERS, GIBS_LAYERS, SatelliteFrame, get_wms_client
+from backend.app.services.wms_client import BHUVAN_LAYERS, GIBS_LAYERS, INSAT_LAYERS, SatelliteFrame, get_wms_client
 from backend.app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -100,7 +100,7 @@ async def run_pipeline(
         append_audit_event(job_id, "stage_update", {"progress": round(progress, 3), "message": message})
 
     # ── Timestamps ─────────────────────────────────────────────────────────
-    layer_info = GIBS_LAYERS.get(layer_id) or BHUVAN_LAYERS.get(layer_id, {})
+    layer_info = GIBS_LAYERS.get(layer_id) or BHUVAN_LAYERS.get(layer_id) or INSAT_LAYERS.get(layer_id, {})
     temporal_res = step_minutes or float(layer_info.get('temporal_resolution_minutes', 1440.0))
     timestamps = _generate_timestamps(time_start, time_end, temporal_res)
     if len(timestamps) > settings.max_frames_per_session:
@@ -195,7 +195,7 @@ async def run_pipeline(
 
     for i, (obs_frame, obs_time) in enumerate(zip(preprocessed.frames, preprocessed.timestamps)):
         all_frames.append(obs_frame)
-        all_metadata.append(FrameMetadata(frame_index=frame_idx, timestamp=obs_time, is_interpolated=False))
+        all_metadata.append(FrameMetadata(frame_index=frame_idx, timestamp=obs_time, is_interpolated=False, provider_source=getattr(obs_frame, 'source', data_source)))
         all_t_positions.append(None)
         ref_pairs.append(None)
         obs_frame_idx_in_list = len(all_frames) - 1
@@ -241,7 +241,7 @@ async def run_pipeline(
                 confidence_score=cs, confidence_class=cls, model_used=engine.model_name,
                 flow_consistency=frame_score.flow_consistency, mad_score=frame_score.mad_score,
                 gap_minutes=gap_info.gap_minutes, gap_category=gap_info.category,
-                psnr=approx_psnr, ssim=approx_ssim,
+                psnr=approx_psnr, ssim=approx_ssim, provider_source="ai_interpolated",
             ))
             all_t_positions.append(t_pos)
             ref_pairs.append((obs_frame_idx_in_list, -1))

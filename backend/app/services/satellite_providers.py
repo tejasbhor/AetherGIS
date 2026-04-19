@@ -80,7 +80,7 @@ def _decode_image(raw: bytes, resolution: int) -> Optional[np.ndarray]:
 
 class NASAGIBSProvider(SatelliteProvider):
     name = "nasa_gibs"
-    priority = 1
+    priority = 3
     base_url = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi"
 
     async def fetch_frame(
@@ -180,10 +180,66 @@ class HimawariProvider(SatelliteProvider):
 # ── INSAT provider ────────────────────────────────────────────────────────────
 
 class INSATProvider(SatelliteProvider):
+    """
+    MOSDAC WMS provider for INSAT-3D / INSAT-3DR satellite imagery.
+
+    Fetches half-hourly composites from the ISRO/SAC MOSDAC live WMS:
+        https://mosdac.gov.in/live/wms
+
+    Layer names (LAYERS= WMS param) match INSAT_LAYERS keys 1:1.
+    Timestamps are rounded to the nearest :00/:30 UTC slot before the
+    request is issued — off-slot times cause MOSDAC to return an OGC
+    ServiceException rather than the nearest valid composite.
+    """
+
     name = "insat"
-    priority = 3
-    # MOSDAC WMS for INSAT-3D/3DR (India)
-    base_url = "https://mosdac.gov.in/live/wms"
+    priority = 1
+
+    # ── CRITICAL FIX: real MOSDAC endpoint, not NASA GIBS ────────────────────
+    @property
+    def base_url(self) -> str:  # property so settings are read at call time
+        return settings.mosdac_wms_url  # 'https://mosdac.gov.in/live/wms'
+
+    @staticmethod
+    def _round_to_insat_slot(ts: datetime) -> datetime:
+        """Round down to nearest 30-minute INSAT composite slot (:00 or :30 UTC)."""
+        slot_minute = 0 if ts.minute < 30 else 30
+        return ts.replace(minute=slot_minute, second=0, microsecond=0)
+
+    def _build_params(
+        self,
+        layer_id: str,
+        bbox: list[float],
+        timestamp: datetime,
+        resolution: int,
+    ) -> dict[str, str]:
+        """
+        Build WMS 1.1.1 GetMap parameters for MOSDAC.
+
+        BBOX convention:  minlon,minlat,maxlon,maxlat  (EPSG:4326).
+        Note the GIBS providers swap bbox[0]/[1] — MOSDAC does NOT require
+        this swap; it uses the standard minx,miny,maxx,maxy order.
+        """
+        minlon, minlat, maxlon, maxlat = bbox
+        slot_ts = self._round_to_insat_slot(timestamp)
+        params: dict[str, str] = {
+            "SERVICE": "WMS",
+            "VERSION": "1.1.1",
+            "REQUEST": "GetMap",
+            # ── CRITICAL FIX: use the actual MOSDAC layer name, NOT Himawari ──
+            "LAYERS": layer_id,
+            "STYLES": "",
+            "SRS": "EPSG:4326",
+            "BBOX": f"{minlon},{minlat},{maxlon},{maxlat}",
+            "WIDTH": str(resolution),
+            "HEIGHT": str(resolution),
+            "FORMAT": "image/png",
+            "TRANSPARENT": "TRUE",
+            "TIME": slot_ts.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        if settings.mosdac_api_key:
+            params["key"] = settings.mosdac_api_key
+        return params
 
     async def fetch_frame(
         self,
@@ -193,34 +249,78 @@ class INSATProvider(SatelliteProvider):
         resolution: int,
         client: httpx.AsyncClient,
     ) -> Optional[ProviderFrame]:
-        params = {
-            "SERVICE": "WMS",
-            "VERSION": "1.1.1",
-            "REQUEST": "GetMap",
-            "LAYERS": "INSAT3D_VIS",
-            "SRS": "EPSG:4326",
-            "BBOX": f"{bbox[1]},{bbox[0]},{bbox[3]},{bbox[2]}",
-            "WIDTH": str(resolution),
-            "HEIGHT": str(resolution),
-            "FORMAT": "image/png",
-            "TIME": timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        }
+        from backend.app.services.wms_client import INSAT_LAYERS
+
+        # Reject unknown INSAT layer IDs before hitting the network
+        if layer_id not in INSAT_LAYERS:
+            logger.warning(
+                "INSATProvider: unknown layer_id — skipping",
+                layer_id=layer_id,
+                known=list(INSAT_LAYERS.keys()),
+            )
+            return None
+
+        params = self._build_params(layer_id, bbox, timestamp, resolution)
+
         try:
-            resp = await client.get(self.base_url, params=params, timeout=settings.wms_timeout_seconds)
-            if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image"):
-                img = _decode_image(resp.content, resolution)
-                if img is not None:
-                    return ProviderFrame(
-                        image=img,
-                        timestamp=timestamp,
-                        source=self.name,
-                        layer=layer_id,
-                        bbox=bbox,
-                        resolution=resolution,
-                        url_used=str(resp.url),
-                    )
+            resp = await client.get(
+                self.base_url,
+                params=params,
+                timeout=settings.wms_timeout_seconds,
+                follow_redirects=True,
+            )
+
+            if resp.status_code != 200:
+                logger.warning(
+                    "MOSDAC WMS non-200",
+                    status=resp.status_code,
+                    layer=layer_id,
+                    time=params["TIME"],
+                )
+                return None
+
+            ct = resp.headers.get("content-type", "")
+
+            # MOSDAC returns OGC ServiceException as HTTP 200 + XML/text —
+            # must detect this and treat it as a failed fetch, not a valid image
+            if ct.startswith(("application/vnd.ogc", "text/xml", "application/xml", "text/plain")):
+                logger.warning(
+                    "MOSDAC WMS service exception",
+                    layer=layer_id,
+                    time=params["TIME"],
+                    body_preview=resp.text[:200],
+                )
+                return None
+
+            if not ct.startswith("image"):
+                logger.warning(
+                    "MOSDAC WMS unexpected content-type",
+                    content_type=ct,
+                    layer=layer_id,
+                    time=params["TIME"],
+                )
+                return None
+
+            img = _decode_image(resp.content, resolution)
+            if img is None:
+                logger.warning("MOSDAC image decode failed", layer=layer_id, time=params["TIME"])
+                return None
+
+            return ProviderFrame(
+                image=img,
+                timestamp=timestamp,
+                source=self.name,
+                layer=layer_id,
+                bbox=bbox,
+                resolution=resolution,
+                url_used=str(resp.url),
+            )
+
+        except httpx.TimeoutException:
+            logger.warning("MOSDAC WMS timeout", layer=layer_id, time=params.get("TIME"))
         except Exception as exc:
-            logger.warning("INSAT fetch failed", error=str(exc))
+            logger.warning("MOSDAC fetch failed", layer=layer_id, error=str(exc))
+
         return None
 
 
@@ -295,7 +395,7 @@ async def fetch_with_fallback(
     bbox: list[float],
     timestamp: datetime,
     resolution: int,
-    preferred_source: str = "nasa_gibs",
+    preferred_source: str = "insat",
     job_id: Optional[str] = None,
     max_retries: int = 3,
 ) -> Optional[ProviderFrame]:

@@ -1,4 +1,4 @@
-﻿"""AetherGIS - API routes: layers."""
+"""AetherGIS - API routes: layers."""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from backend.app.models.schemas import DataSource, LayerCapabilities, LayerInfo
 from backend.app.services.layer_capabilities import get_layer_capabilities_live
 from backend.app.services.layer_catalog import get_layer_catalog
-from backend.app.services.wms_client import BHUVAN_LAYERS, GIBS_LAYERS
+from backend.app.services.wms_client import BHUVAN_LAYERS, GIBS_LAYERS, INSAT_LAYERS
 from backend.app.utils.logging import get_logger
 
 router = APIRouter(prefix='/layers', tags=['Layers'])
@@ -40,13 +40,15 @@ async def list_layers(data_source: DataSource = DataSource.nasa_gibs) -> list[La
 
 @router.get('/{layer_id}/capabilities', response_model=LayerCapabilities)
 async def get_layer_capabilities(layer_id: str) -> LayerCapabilities:
-    if layer_id not in GIBS_LAYERS and layer_id not in BHUVAN_LAYERS:
+    if layer_id not in GIBS_LAYERS and layer_id not in BHUVAN_LAYERS and layer_id not in INSAT_LAYERS:
         raise HTTPException(status_code=404, detail=f'Layer {layer_id!r} not found')
 
     if layer_id in GIBS_LAYERS:
         info = GIBS_LAYERS[layer_id]
-    else:
+    elif layer_id in BHUVAN_LAYERS:
         info = BHUVAN_LAYERS[layer_id]
+    else:
+        info = INSAT_LAYERS[layer_id]
 
     live_caps = await get_layer_capabilities_live(layer_id)
     return LayerCapabilities(

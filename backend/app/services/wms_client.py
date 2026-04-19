@@ -388,6 +388,264 @@ BHUVAN_LAYERS: dict[str, dict] = {
     },
 }
 
+# ── MOSDAC layer-name mapping ─────────────────────────────────────────────────
+# Maps our canonical layer IDs (= MOSDAC WMS LAYERS param values) to human
+# metadata.  The key *is* the WMS layer name sent in the LAYERS= query param.
+#
+# INSAT-3D  (82.0°E): operational February 2014 – present
+# INSAT-3DR (83.0°E): operational September 2016 – present
+#
+# MOSDAC WMS endpoint: https://mosdac.gov.in/live/wms
+# References:
+#   https://mosdac.gov.in/                        (ISRO/SAC portal)
+#   https://www.isro.gov.in/INSAT_3D.html
+#   ISRO Satellite Centre INSAT-3D/3DR user guides
+# ─────────────────────────────────────────────────────────────────────────────
+
+_INSAT_COMMON_PRESETS: dict = {
+    "india": {
+        "label": "Indian Subcontinent",
+        "bbox": [65.0, 5.0, 100.0, 38.0],
+        "description": "Full India overview including surrounding seas. "
+                       "Primary domain for IMD operational monitoring.",
+        "agency": "MOSDAC / IMD / ISRO",
+    },
+    "bay_of_bengal": {
+        "label": "Bay of Bengal",
+        "bbox": [78.0, 4.0, 100.0, 24.0],
+        "description": "Primary NIO cyclone basin. Monitored by RSMC New Delhi (IMD).",
+        "agency": "IMD / RSMC New Delhi",
+    },
+    "arabian_sea": {
+        "label": "Arabian Sea",
+        "bbox": [52.0, 8.0, 78.0, 28.0],
+        "description": "NIO secondary basin. Rapid intensification risk. "
+                       "Landfall risk: Gujarat, Maharashtra, Oman, Pakistan.",
+        "agency": "IMD / RSMC New Delhi",
+    },
+    "south_asia": {
+        "label": "South Asia Regional",
+        "bbox": [50.0, -10.0, 120.0, 40.0],
+        "description": "Full INSAT-3D disk view of South / South-East Asia and surrounding oceans.",
+        "agency": "MOSDAC / IMD",
+    },
+}
+
+INSAT_LAYERS: dict[str, dict] = {
+    # ── INSAT-3D (82.0°E nadir) ───────────────────────────────────────────────
+    "INSAT3D_VIS": {
+        "name": "INSAT-3D Visible (VIS, 0.65 µm)",
+        "temporal_resolution_minutes": 30,
+        "use_case": "Daytime cloud/storm/cyclone tracking over India & Indian Ocean",
+        "description": (
+            "INSAT-3D VIS channel (0.65 µm) at ~1 km resolution. "
+            "Half-hourly composites via MOSDAC live WMS. "
+            "Daytime only — use TIR1 for 24/7 monitoring. "
+            "Primary sensor for IMD operational cyclone surveillance. "
+            "Nadir at 82.0°E; disk covers 40°–120°E, 40°S–40°N."
+        ),
+        "nadir_lon": 82.0,
+        "coverage_lon_min": 40.0, "coverage_lon_max": 120.0,
+        "coverage_lat_min": -40.0, "coverage_lat_max": 40.0,
+        "coverage_note": "INSAT-3D (nadir 82°E). Daytime visible. "
+                         "Use INSAT3D_TIR1 for night/24-7 monitoring.",
+        "preset_regions": _INSAT_COMMON_PRESETS,
+        "default_preset": "india",
+    },
+    "INSAT3D_TIR1": {
+        "name": "INSAT-3D Thermal Infrared 1 (TIR1, 10.8 µm)",
+        "temporal_resolution_minutes": 30,
+        "use_case": "24/7 cyclone/monsoon/convection tracking (India & Indian Ocean)",
+        "description": (
+            "INSAT-3D TIR1 channel (10.8 µm) at ~4 km resolution. "
+            "Primary operational IR channel for IMD. "
+            "Cold cloud tops (< −65 °C / 208 K) indicate deep convection; "
+            "< −80 °C (193 K) = likely CDO / eyewall. "
+            "Works day and night — not affected by solar illumination."
+        ),
+        "nadir_lon": 82.0,
+        "coverage_lon_min": 40.0, "coverage_lon_max": 120.0,
+        "coverage_lat_min": -40.0, "coverage_lat_max": 40.0,
+        "coverage_note": "INSAT-3D (nadir 82°E). Primary 24/7 IR channel. "
+                         "Pair with VIS for daytime structural analysis.",
+        "preset_regions": _INSAT_COMMON_PRESETS,
+        "default_preset": "bay_of_bengal",
+    },
+    "INSAT3D_TIR2": {
+        "name": "INSAT-3D Thermal Infrared 2 (TIR2, 12.0 µm)",
+        "temporal_resolution_minutes": 30,
+        "use_case": "Sea Surface Temperature retrieval & split-window cloud-top temperature",
+        "description": (
+            "INSAT-3D TIR2 channel (12.0 µm) at ~4 km resolution. "
+            "Used in split-window algorithm with TIR1 for SST and cloud-top temperature "
+            "retrieval. Complementary to TIR1 for atmospheric correction. "
+            "Monsoon SST warm-pool tracking in Arabian Sea and Bay of Bengal."
+        ),
+        "nadir_lon": 82.0,
+        "coverage_lon_min": 40.0, "coverage_lon_max": 120.0,
+        "coverage_lat_min": -40.0, "coverage_lat_max": 40.0,
+        "coverage_note": "INSAT-3D TIR2 (12 µm). Use alongside TIR1 for split-window SST.",
+        "preset_regions": _INSAT_COMMON_PRESETS,
+        "default_preset": "india",
+    },
+    "INSAT3D_MIR": {
+        "name": "INSAT-3D Mid Infrared (MIR, 3.9 µm)",
+        "temporal_resolution_minutes": 30,
+        "use_case": "Fire detection, low cloud/fog discrimination, nighttime sea surface features",
+        "description": (
+            "INSAT-3D MIR channel (3.9 µm) at ~4 km resolution. "
+            "Highly sensitive to fire hotspots (forest fires, crop burning). "
+            "Day: sun glint over ocean reveals low-level wind patterns. "
+            "Night: fog / stratus discrimination from cloud-free sky."
+        ),
+        "nadir_lon": 82.0,
+        "coverage_lon_min": 40.0, "coverage_lon_max": 120.0,
+        "coverage_lat_min": -40.0, "coverage_lat_max": 40.0,
+        "coverage_note": "INSAT-3D MIR (3.9 µm). Best for fire/fog detection.",
+        "preset_regions": _INSAT_COMMON_PRESETS,
+        "default_preset": "india",
+    },
+    "INSAT3D_SWIR": {
+        "name": "INSAT-3D Short-Wave Infrared (SWIR, 1.625 µm)",
+        "temporal_resolution_minutes": 30,
+        "use_case": "Snow/ice vs. cloud discrimination, vegetation stress, aerosol",
+        "description": (
+            "INSAT-3D SWIR channel (1.625 µm) at ~1 km resolution. "
+            "Unique capability for discriminating snow/ice from cloud (ice absorbs at 1.6 µm, "
+            "water clouds reflect). Also used for aerosol optical depth over bright surfaces "
+            "and vegetation stress detection."
+        ),
+        "nadir_lon": 82.0,
+        "coverage_lon_min": 40.0, "coverage_lon_max": 120.0,
+        "coverage_lat_min": -40.0, "coverage_lat_max": 40.0,
+        "coverage_note": "INSAT-3D SWIR (1.625 µm). Daytime only.",
+        "preset_regions": _INSAT_COMMON_PRESETS,
+        "default_preset": "india",
+    },
+    "INSAT3D_WV": {
+        "name": "INSAT-3D Water Vapour (WV, 6.8 µm)",
+        "temporal_resolution_minutes": 30,
+        "use_case": "Upper-tropospheric moisture, monsoon dynamics, AMV derivation",
+        "description": (
+            "INSAT-3D WV channel (6.8 µm) at ~8 km resolution. "
+            "Sensitive to upper-tropospheric water vapour (300–600 hPa). "
+            "Used for Atmospheric Motion Vectors (AMVs) — primary wind product for NWP. "
+            "Dark areas = dry upper atmosphere (subsidence / clear outflow); "
+            "bright = moist upper troposphere (deep convection, monsoon trough)."
+        ),
+        "nadir_lon": 82.0,
+        "coverage_lon_min": 40.0, "coverage_lon_max": 120.0,
+        "coverage_lat_min": -40.0, "coverage_lat_max": 40.0,
+        "coverage_note": "INSAT-3D WV (6.8 µm). Upper-tropospheric moisture channel.",
+        "preset_regions": _INSAT_COMMON_PRESETS,
+        "default_preset": "india",
+    },
+
+    # ── INSAT-3DR (83.0°E nadir) ──────────────────────────────────────────────
+    # INSAT-3DR is the redundancy/backup satellite for INSAT-3D, operational
+    # since September 2016. It carries the same imager payload.
+    "INSAT3DR_VIS": {
+        "name": "INSAT-3DR Visible (VIS, 0.65 µm)",
+        "temporal_resolution_minutes": 30,
+        "use_case": "Daytime cloud/storm tracking (India & Indian Ocean) — 3DR",
+        "description": (
+            "INSAT-3DR VIS channel (0.65 µm) at ~1 km resolution. "
+            "INSAT-3DR is the backup/redundancy satellite at 83.0°E nadir. "
+            "Operational since September 2016. Same sensor design as INSAT-3D. "
+            "Often cross-referenced with INSAT-3D for consistency validation."
+        ),
+        "nadir_lon": 83.0,
+        "coverage_lon_min": 40.0, "coverage_lon_max": 120.0,
+        "coverage_lat_min": -40.0, "coverage_lat_max": 40.0,
+        "coverage_note": "INSAT-3DR (nadir 83°E). Redundancy satellite. Daytime VIS.",
+        "preset_regions": _INSAT_COMMON_PRESETS,
+        "default_preset": "india",
+    },
+    "INSAT3DR_TIR1": {
+        "name": "INSAT-3DR Thermal Infrared 1 (TIR1, 10.8 µm)",
+        "temporal_resolution_minutes": 30,
+        "use_case": "24/7 cyclone/convection tracking (India & Indian Ocean) — 3DR",
+        "description": (
+            "INSAT-3DR TIR1 channel (10.8 µm) at ~4 km resolution. "
+            "Operational since September 2016. Backup satellite for INSAT-3D. "
+            "Used operationally during INSAT-3D maintenance/eclipse windows."
+        ),
+        "nadir_lon": 83.0,
+        "coverage_lon_min": 40.0, "coverage_lon_max": 120.0,
+        "coverage_lat_min": -40.0, "coverage_lat_max": 40.0,
+        "coverage_note": "INSAT-3DR TIR1 (10.8 µm). 24/7 backup IR channel.",
+        "preset_regions": _INSAT_COMMON_PRESETS,
+        "default_preset": "bay_of_bengal",
+    },
+    "INSAT3DR_TIR2": {
+        "name": "INSAT-3DR Thermal Infrared 2 (TIR2, 12.0 µm)",
+        "temporal_resolution_minutes": 30,
+        "use_case": "SST retrieval & split-window cloud-top temperature — 3DR",
+        "description": (
+            "INSAT-3DR TIR2 channel (12.0 µm) at ~4 km resolution. "
+            "Operational since September 2016. "
+            "Split-window SST product derived jointly with TIR1."
+        ),
+        "nadir_lon": 83.0,
+        "coverage_lon_min": 40.0, "coverage_lon_max": 120.0,
+        "coverage_lat_min": -40.0, "coverage_lat_max": 40.0,
+        "coverage_note": "INSAT-3DR TIR2 (12 µm). Use alongside TIR1 for SST.",
+        "preset_regions": _INSAT_COMMON_PRESETS,
+        "default_preset": "india",
+    },
+    "INSAT3DR_MIR": {
+        "name": "INSAT-3DR Mid Infrared (MIR, 3.9 µm)",
+        "temporal_resolution_minutes": 30,
+        "use_case": "Fire detection, low cloud/fog — 3DR",
+        "description": (
+            "INSAT-3DR MIR channel (3.9 µm) at ~4 km resolution. "
+            "Operational since September 2016. "
+            "Same fire/fog detection capability as INSAT-3D MIR."
+        ),
+        "nadir_lon": 83.0,
+        "coverage_lon_min": 40.0, "coverage_lon_max": 120.0,
+        "coverage_lat_min": -40.0, "coverage_lat_max": 40.0,
+        "coverage_note": "INSAT-3DR MIR (3.9 µm). Fire/fog detection backup.",
+        "preset_regions": _INSAT_COMMON_PRESETS,
+        "default_preset": "india",
+    },
+    "INSAT3DR_WV": {
+        "name": "INSAT-3DR Water Vapour (WV, 6.8 µm)",
+        "temporal_resolution_minutes": 30,
+        "use_case": "Upper-tropospheric moisture & AMV derivation — 3DR",
+        "description": (
+            "INSAT-3DR WV channel (6.8 µm) at ~8 km resolution. "
+            "Operational since September 2016. "
+            "Used together with INSAT-3D WV for improved AMV coverage."
+        ),
+        "nadir_lon": 83.0,
+        "coverage_lon_min": 40.0, "coverage_lon_max": 120.0,
+        "coverage_lat_min": -40.0, "coverage_lat_max": 40.0,
+        "coverage_note": "INSAT-3DR WV (6.8 µm). Upper-tropospheric moisture backup.",
+        "preset_regions": _INSAT_COMMON_PRESETS,
+        "default_preset": "india",
+    },
+}
+
+
+# ── INSAT temporal slot helper ─────────────────────────────────────────────────
+
+def _round_to_insat_slot(ts: datetime) -> datetime:
+    """
+    Round a datetime down to the nearest INSAT-3D/3DR 30-minute composite slot.
+
+    MOSDAC composites are produced at :00 and :30 of each UTC hour.
+    Supplying an off-slot time causes MOSDAC to return a WMS ServiceException
+    rather than the nearest available frame.
+
+    Examples:
+        14:07 UTC  →  14:00 UTC
+        14:31 UTC  →  14:30 UTC
+        14:59 UTC  →  14:30 UTC
+    """
+    slot_minute = 0 if ts.minute < 30 else 30
+    return ts.replace(minute=slot_minute, second=0, microsecond=0)
+
 
 @dataclass
 class SatelliteFrame:
@@ -398,6 +656,7 @@ class SatelliteFrame:
     resolution: int
     image: np.ndarray  # float32 RGB [H, W, 3] in [0.0, 1.0]
     image_hash: str
+    source: str = "nasa_gibs"
     is_valid: bool = True
     validation_flags: list[str] = field(default_factory=list)
 
@@ -567,7 +826,7 @@ class NASAGIBSClient:
         resolution: int = 1024,
     ) -> SatelliteFrame:
         """Fetch a single satellite frame for the given parameters."""
-        if layer_id not in GIBS_LAYERS:
+        if layer_id not in GIBS_LAYERS and layer_id not in BHUVAN_LAYERS and layer_id not in INSAT_LAYERS:
             raise WMSClientError(f"Unknown layer: {layer_id}")
 
         params = self._build_request_params(layer_id, bbox, timestamp, resolution)
@@ -674,6 +933,16 @@ class NASAGIBSClient:
                     **info,
                 })
 
+        # Add INSAT layers
+        if not data_source or data_source == "insat":
+            for lid, info in INSAT_LAYERS.items():
+                all_layers.append({
+                    "layer_id": lid,
+                    "data_source": "insat",
+                    "crs": "EPSG:4326",
+                    **info,
+                })
+
         return all_layers
 
 
@@ -711,6 +980,126 @@ class BhuvanClient(NASAGIBSClient):
             f"Bhuvan WMS request failed after {self.settings.wms_max_retries} attempts: {last_exc}"
         )
 
+class INSATClient(NASAGIBSClient):
+    """
+    Async MOSDAC WMS client for INSAT-3D / INSAT-3DR imagery.
+
+    Fetches half-hourly satellite composites from the MOSDAC live WMS endpoint
+    (https://mosdac.gov.in/live/wms) operated by ISRO/SAC.
+
+    The WMS layer name is the canonical INSAT_LAYERS key (e.g. "INSAT3D_VIS",
+    "INSAT3DR_TIR1") — these match MOSDAC's own LAYERS= parameter values
+    directly, so no extra translation table is needed.
+
+    Auth: set MOSDAC_API_KEY in the environment / .env file if a bearer token
+    is required (public endpoint works without a key for standard resolution).
+
+    References:
+        https://mosdac.gov.in/
+        ISRO INSAT-3D/3DR Imager User Guide (SAC, 2014/2016)
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        # ── CRITICAL FIX: use MOSDAC endpoint, NOT nasa_gibs_base_url ──────
+        self.base_url = self.settings.mosdac_wms_url   # 'https://mosdac.gov.in/live/wms'
+
+    def _build_request_params(
+        self,
+        layer_id: str,
+        bbox: list[float],
+        timestamp: datetime,
+        resolution: int,
+    ) -> dict[str, str]:
+        """
+        Build WMS 1.1.1 GetMap params for the MOSDAC endpoint.
+
+        layer_id must be a key in INSAT_LAYERS (e.g. "INSAT3D_VIS").
+        This value is passed directly as the LAYERS= WMS parameter because
+        MOSDAC's layer names match our canonical IDs 1:1.
+
+        BBOX convention for MOSDAC WMS 1.1.1:
+            minlon,minlat,maxlon,maxlat  (EPSG:4326, same as GIBS)
+        """
+        if layer_id not in INSAT_LAYERS:
+            raise WMSClientError(
+                f"Unknown INSAT layer: {layer_id!r}. "
+                f"Valid layers: {list(INSAT_LAYERS.keys())}"
+            )
+        minlon, minlat, maxlon, maxlat = bbox
+        params: dict[str, str] = {
+            "SERVICE": "WMS",
+            "VERSION": "1.1.1",
+            "REQUEST": "GetMap",
+            # ── CRITICAL FIX: use the actual MOSDAC layer name, NOT Himawari ──
+            "LAYERS": layer_id,
+            "STYLES": "",
+            "SRS": "EPSG:4326",
+            "BBOX": f"{minlon},{minlat},{maxlon},{maxlat}",
+            "WIDTH": str(resolution),
+            "HEIGHT": str(resolution),
+            "FORMAT": "image/png",
+            "TRANSPARENT": "TRUE",
+            # MOSDAC uses ISO 8601 UTC timestamps — round to nearest 30-min slot
+            "TIME": _round_to_insat_slot(timestamp).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        # Attach API key if configured (goes as a query param on MOSDAC)
+        if self.settings.mosdac_api_key:
+            params["key"] = self.settings.mosdac_api_key
+        return params
+
+    async def _fetch_with_retry(self, params: dict) -> bytes:
+        """
+        Fetch a MOSDAC WMS tile with exponential-backoff retry.
+
+        MOSDAC returns HTTP 200 + OGC ServiceException XML when no data is
+        available for a time slot (e.g. pre-launch or eclipse gap), so we
+        check the content-type *and* sniff for the OGC error envelope before
+        accepting the response as valid image bytes.
+        """
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, self.settings.wms_max_retries + 1):
+            try:
+                await self._rate_limit()
+                resp = await self._client.get(
+                    self.base_url,
+                    params=params,
+                    follow_redirects=True,
+                )
+                resp.raise_for_status()
+
+                ct = resp.headers.get("content-type", "")
+                # MOSDAC can return OGC exceptions as 200 + XML/text
+                if ct.startswith(("application/vnd.ogc", "text/xml", "application/xml")):
+                    raise WMSClientError(
+                        f"MOSDAC WMS service exception (layer={params.get('LAYERS')}, "
+                        f"time={params.get('TIME')}): {resp.text[:300]}"
+                    )
+                if not ct.startswith("image"):
+                    raise WMSClientError(
+                        f"MOSDAC returned unexpected content-type {ct!r} "
+                        f"(layer={params.get('LAYERS')}, time={params.get('TIME')})"
+                    )
+                return resp.content
+
+            except (httpx.HTTPError, WMSClientError) as exc:
+                last_exc = exc
+                wait = 2 ** attempt
+                logger.warning(
+                    "MOSDAC WMS request failed",
+                    attempt=attempt,
+                    layer=params.get("LAYERS"),
+                    time=params.get("TIME"),
+                    error=str(exc),
+                )
+                if attempt < self.settings.wms_max_retries:
+                    await asyncio.sleep(wait)
+
+        raise WMSClientError(
+            f"MOSDAC WMS request failed after {self.settings.wms_max_retries} attempts "
+            f"(layer={params.get('LAYERS')}, time={params.get('TIME')}): {last_exc}"
+        )
+
 
 def get_wms_client(data_source: str):
     """Factory to get the appropriate WMS client."""
@@ -718,4 +1107,6 @@ def get_wms_client(data_source: str):
         return NASAGIBSClient()
     elif data_source == "isro_bhuvan":
         return BhuvanClient()
+    elif data_source == "insat":
+        return INSATClient()
     raise ValueError(f"Unknown data source: {data_source}")

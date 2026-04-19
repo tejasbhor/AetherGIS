@@ -112,7 +112,7 @@ export default function PlaybackControls() {
           textAlign: 'center',
         }}>
           {new Date(currentMeta.timestamp).toISOString().slice(0, 16).replace('T', ' ')} UTC
-          {currentMeta.is_interpolated && ' · AI'}
+          {currentMeta.is_interpolated ? ' · AI' : (currentMeta.provider_source ? ` · [${currentMeta.provider_source.toUpperCase()}]` : '')}
         </div>
       )}
 

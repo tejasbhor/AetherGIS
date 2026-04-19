@@ -16,6 +16,7 @@ export interface FrameMetadata {
   gap_category?: string;
   psnr?: number;
   ssim?: number;
+  provider_source?: string;
 }
 export interface QualityMetrics {
   tcs?: number;
@@ -107,7 +108,7 @@ export interface ExplanationResult {
 export interface HeatmapData { type: string; data_url: string; total_frames: number; }
 
 interface TGISState {
-  dataSource: 'nasa_gibs' | 'isro_bhuvan';
+  dataSource: 'nasa_gibs' | 'isro_bhuvan' | 'insat';
   selectedLayer: string | null;
   selectedPresetKey: string | null;
   timeStart: string;
@@ -158,7 +159,7 @@ interface TGISState {
   loadingHeatmap: Record<string, boolean>;
   // ── Overlay opacity ───────────────────────────────────────────────────────
   overlayOpacity: Record<string, number>;         // keyed by overlay type
-  setDataSource: (src: 'nasa_gibs' | 'isro_bhuvan') => void;
+  setDataSource: (src: 'nasa_gibs' | 'isro_bhuvan' | 'insat') => void;
   setSelectedLayer: (id: string | null) => void;
   setSelectedPresetKey: (key: string | null) => void;
   setTimeStart: (t: string) => void;
@@ -255,7 +256,7 @@ export const useStore = create<TGISState>()(
       activePanel: 'controls',
       layers: [],
       apiError: null,
-      dataSource: 'nasa_gibs',
+      dataSource: 'insat',
       // ── Advanced overlay toggles ─────────────────────────────────────────
       showTrajectories: false,
       showUncertaintyMap: false,

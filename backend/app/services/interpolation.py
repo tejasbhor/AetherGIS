@@ -107,7 +107,13 @@ class RIFEEngine(InterpolationEngine):
             import torch
             device_str = settings.cuda_device
             if device_str == 'cuda' and not torch.cuda.is_available():
-                logger.warning('CUDA not available, falling back to CPU for RIFE')
+                logger.warning('CUDA not available, checking for MPS')
+                if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                    device_str = 'mps'
+                else:
+                    device_str = 'cpu'
+            elif device_str == 'mps' and not (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()):
+                logger.warning('MPS not available, falling back to CPU')
                 device_str = 'cpu'
             self._device = device_str
             rife_dir = Path(model_path).parent
@@ -133,6 +139,8 @@ class RIFEEngine(InterpolationEngine):
             tensor = torch.from_numpy(frame.transpose(2, 0, 1)).unsqueeze(0).float()
             if self._device == 'cuda':
                 tensor = tensor.cuda()
+            elif self._device == 'mps':
+                tensor = tensor.to('mps')
             return tensor
 
         ta = to_tensor(frame_a)
@@ -218,12 +226,23 @@ class FILMEngine(InterpolationEngine):
             import torch
             device_str = settings.cuda_device
             if device_str == 'cuda' and not torch.cuda.is_available():
-                logger.warning('CUDA not available, falling back to CPU for FILM')
+                logger.warning('CUDA not available, checking for MPS')
+                if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                    device_str = 'mps'
+                else:
+                    device_str = 'cpu'
+            elif device_str == 'mps' and not (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()):
+                logger.warning('MPS not available, falling back to CPU')
                 device_str = 'cpu'
-            model = torch.jit.load(str(model_path), map_location=device_str)
+            
+            # MPS isn't always fully supported for torch.jit.load map_location, but we can load to CPU then move
+            load_device = 'cpu' if device_str == 'mps' else device_str
+            model = torch.jit.load(str(model_path), map_location=load_device)
             model.eval()
             if device_str == 'cuda':
                 model = model.cuda()
+            elif device_str == 'mps':
+                model = model.to('mps')
             self._model = model
             self._device = device_str
             self._loaded = True
@@ -246,6 +265,8 @@ class FILMEngine(InterpolationEngine):
                 tensor = torch.from_numpy(frame.transpose(2, 0, 1)).unsqueeze(0).float()
                 if self._device == 'cuda':
                     tensor = tensor.cuda()
+                elif self._device == 'mps':
+                    tensor = tensor.to('mps')
                 return tensor
 
             ta = to_tensor(frame_a)
@@ -264,6 +285,8 @@ class FILMEngine(InterpolationEngine):
                     t_tensor = torch.tensor([t_val], dtype=torch.float32).view(1, 1)
                     if self._device == 'cuda':
                         t_tensor = t_tensor.cuda()
+                    elif self._device == 'mps':
+                        t_tensor = t_tensor.to('mps')
                     
                     if self._model is None:
                          raise RuntimeError("FILM model not loaded")
