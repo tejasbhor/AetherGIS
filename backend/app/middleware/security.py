@@ -21,20 +21,25 @@ from backend.app.utils.logging import get_logger
 settings = get_settings()
 logger = get_logger(__name__)
 
-# Rate limit config
-RATE_LIMIT_REQUESTS = 120          # requests per window
+# Rate limit config (Defaulting to 600 for frame-heavy playback)
+RATE_LIMIT_REQUESTS = getattr(settings, "rate_limit_requests_per_minute", 600)
 RATE_LIMIT_WINDOW_SECONDS = 60     # 1-minute window
-RATE_LIMIT_BURST = 20              # allowed burst above limit
+RATE_LIMIT_BURST = 50              # allowed burst above limit
 MAX_BODY_SIZE_MB = 50              # max request body size
 
 # Paths that bypass rate limiting
-RATE_LIMIT_EXEMPT = {
+RATE_LIMIT_EXEMPT_EXACT = {
     "/api/v1/health",
     "/api/v1/",
     "/",
     "/api/docs",
     "/api/redoc",
     "/api/openapi.json",
+}
+
+RATE_LIMIT_EXEMPT_CONTAINS = {
+    "/frames/",
+    "/video/",
 }
 
 # Paths that require API key (if API keys are configured)
@@ -126,27 +131,34 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         ip = _get_client_ip(request)
 
         # ── Rate limiting ─────────────────────────────────────────────────────
-        if path not in RATE_LIMIT_EXEMPT:
-            r = _get_redis()
-            if r:
-                allowed, count, retry_after = _check_rate_limit_redis(ip, r)
-            else:
-                allowed, count, retry_after = _check_rate_limit_memory(ip)
+        # Only enforce rate limiting in production mode
+        if settings.aether_mode == 'production':
+            is_exempt = (
+                path in RATE_LIMIT_EXEMPT_EXACT or 
+                any(sub in path for sub in RATE_LIMIT_EXEMPT_CONTAINS)
+            )
+            
+            if not is_exempt:
+                r = _get_redis()
+                if r:
+                    allowed, count, retry_after = _check_rate_limit_redis(ip, r)
+                else:
+                    allowed, count, retry_after = _check_rate_limit_memory(ip)
 
-            if not allowed:
-                logger.warning("Rate limit exceeded", ip=ip, count=count, path=path)
-                return JSONResponse(
-                    status_code=429,
-                    content={
-                        "detail": "Too many requests. Please slow down.",
-                        "retry_after_seconds": retry_after,
-                    },
-                    headers={
-                        "Retry-After": str(retry_after),
-                        "X-RateLimit-Limit": str(RATE_LIMIT_REQUESTS),
-                        "X-RateLimit-Remaining": "0",
-                    },
-                )
+                if not allowed:
+                    logger.warning("Rate limit exceeded", ip=ip, count=count, path=path)
+                    return JSONResponse(
+                        status_code=429,
+                        content={
+                            "detail": "Too many requests. Please slow down.",
+                            "retry_after_seconds": retry_after,
+                        },
+                        headers={
+                            "Retry-After": str(retry_after),
+                            "X-RateLimit-Limit": str(RATE_LIMIT_REQUESTS),
+                            "X-RateLimit-Remaining": "0",
+                        },
+                    )
 
         # ── API key check ─────────────────────────────────────────────────────
         requires_key = any(path.startswith(prefix) for prefix in API_KEY_REQUIRED_PREFIXES)
@@ -173,5 +185,16 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["X-RateLimit-Limit"] = str(RATE_LIMIT_REQUESTS)
+
+        if settings.aether_mode == 'production':
+            # 1 year HSTS
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+            # Basic CSP - allow own domain and NASA/MOSDAC domains
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "img-src 'self' data: https://*.nasa.gov https://*.gov.in https://*.jaxa.jp; "
+                "script-src 'self' 'unsafe-inline'; "
+                "style-src 'self' 'unsafe-inline'; "
+            )
 
         return response

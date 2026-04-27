@@ -1,10 +1,22 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  cacheDir: 'node_modules/.vite_new',
+  resolve: {
+    alias: {
+      '@brand': path.resolve(__dirname, './src/modules/brand'),
+      '@app': path.resolve(__dirname, './src/modules/app'),
+      '@shared': path.resolve(__dirname, './src/modules/shared'),
+    },
+  },
+  cacheDir: 'node_modules/.vite_v2',
+  optimizeDeps: {
+    include: ['framer-motion'],
+  },
+
   server: {
     port: 5173,
     proxy: {

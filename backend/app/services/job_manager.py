@@ -24,6 +24,7 @@ import redis as redis_sync
 
 from backend.app.config import get_settings
 from backend.app.models.schemas import JobStatus
+from backend.app.services.persistence import create_run, delete_run as delete_persisted_run, update_run_state
 from backend.app.utils.logging import get_logger
 
 settings = get_settings()
@@ -161,6 +162,18 @@ def _dequeue(job_id: str) -> None:
         r.zrem(QUEUE_KEY, job_id)
 
 
+def _mark_running(job_id: str) -> None:
+    r = _get_redis()
+    if r:
+        r.sadd(RUNNING_KEY, job_id)
+
+
+def _clear_running(job_id: str) -> None:
+    r = _get_redis()
+    if r:
+        r.srem(RUNNING_KEY, job_id)
+
+
 def get_queue_position(job_id: str) -> int:
     r = _get_redis()
     if r:
@@ -174,6 +187,23 @@ def get_queue_depth() -> int:
     if r:
         return int(r.zcard(QUEUE_KEY))
     return 0
+
+
+def get_active_job_count() -> int:
+    r = _get_redis()
+    if r:
+        return int(r.scard(RUNNING_KEY))
+    return sum(1 for job in _mem_jobs.values() if job.get("status") == "RUNNING")
+
+
+def can_accept_new_job() -> tuple[bool, str | None]:
+    active = get_active_job_count()
+    if active >= settings.max_active_runs:
+        return False, "Demo server is busy with another active run. Please wait for it to finish."
+    queued = get_queue_depth()
+    if queued >= settings.max_queued_runs:
+        return False, "The queue is full right now. Please try again after the current run completes."
+    return True, None
 
 
 # ── ETA estimation ────────────────────────────────────────────────────────────
@@ -215,6 +245,9 @@ def create_job(
     manifest: Optional[dict] = None,
     priority: JobPriority = JobPriority.normal,
     message: str = "Queued",
+    payload: Optional[dict] = None,
+    session_id: Optional[str] = None,
+    session_name: Optional[str] = None,
 ) -> JobRecord:
     pos = _enqueue(job_id, priority)
     eta = _estimate_completion(pos)
@@ -228,6 +261,15 @@ def create_job(
         manifest=manifest,
     )
     _save_job(record)
+    if payload:
+        create_run(
+            job_id=job_id,
+            payload=payload,
+            manifest=manifest,
+            priority=priority.value,
+            session_id=session_id,
+            session_name=session_name,
+        )
     _append_audit(job_id, "job_created", {"priority": priority.value, "queue_position": pos})
     logger.info("Job created", job_id=job_id, priority=priority.value, queue_pos=pos)
     return record
@@ -252,6 +294,7 @@ def update_job(
         if status == "RUNNING" and record.started_at is None:
             record.started_at = datetime.now(timezone.utc).isoformat()
             _dequeue(job_id)
+            _mark_running(job_id)
     if progress is not None:
         record.progress = max(0.0, min(1.0, progress))
     if stage:
@@ -276,6 +319,14 @@ def update_job(
         record.checkpoints[ck_key] = ck_val
 
     _save_job(record)
+    update_run_state(
+        job_id,
+        status=status,
+        progress=record.progress,
+        stage=record.current_stage,
+        message=record.message,
+        error=record.error,
+    )
     return record
 
 
@@ -294,14 +345,25 @@ def complete_job(job_id: str, result: dict, message: str = "Pipeline completed")
     record.completed_at = now.isoformat()
 
     # Record duration for ETA calibration
+    duration = None
     if record.started_at:
         started = datetime.fromisoformat(record.started_at)
         duration = (now - started).total_seconds()
         _record_duration(duration)
 
     _dequeue(job_id)
+    _clear_running(job_id)
     _save_job(record)
-    _append_audit(job_id, "job_completed", {"duration_sec": record.completed_at})
+    update_run_state(
+        job_id,
+        status=record.status,
+        progress=record.progress,
+        stage=record.current_stage,
+        message=record.message,
+        result=result,
+        manifest=record.manifest,
+    )
+    _append_audit(job_id, "job_completed", {"duration_sec": duration})
     return record
 
 
@@ -315,7 +377,16 @@ def fail_job(job_id: str, error: str, message: str = "Pipeline failed") -> Optio
     record.error = error
     record.completed_at = datetime.now(timezone.utc).isoformat()
     _dequeue(job_id)
+    _clear_running(job_id)
     _save_job(record)
+    update_run_state(
+        job_id,
+        status=record.status,
+        progress=record.progress,
+        stage=record.current_stage,
+        message=record.message,
+        error=error,
+    )
     _append_audit(job_id, "job_failed", {"error": error})
     return record
 
@@ -329,7 +400,15 @@ def cancel_job(job_id: str) -> Optional[JobRecord]:
     record.message = "Cancelled by user"
     record.completed_at = datetime.now(timezone.utc).isoformat()
     _dequeue(job_id)
+    _clear_running(job_id)
     _save_job(record)
+    update_run_state(
+        job_id,
+        status=record.status,
+        progress=record.progress,
+        stage=record.current_stage,
+        message=record.message,
+    )
     _append_audit(job_id, "job_cancelled", {})
     return record
 
@@ -357,6 +436,7 @@ def save_manifest(job_id: str, manifest: dict) -> None:
     if record:
         record.manifest = manifest
         _save_job(record)
+        update_run_state(job_id, manifest=manifest)
 
     logger.info("Manifest saved", job_id=job_id, path=str(manifest_path))
 
@@ -431,3 +511,13 @@ def load_checkpoint(job_id: str, stage: str) -> Optional[Any]:
         return None
     with open(ckpt_path) as f:
         return json.load(f)
+
+
+def purge_job(job_id: str) -> None:
+    r = _get_redis()
+    if r:
+        r.delete(f"aethergis:job:{job_id}")
+        r.zrem(QUEUE_KEY, job_id)
+        r.srem(RUNNING_KEY, job_id)
+    _mem_jobs.pop(job_id, None)
+    delete_persisted_run(job_id)

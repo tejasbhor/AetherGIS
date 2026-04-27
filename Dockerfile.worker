@@ -20,7 +20,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 # Install dependencies
 COPY pyproject.toml uv.lock README.md ./
-RUN uv sync --frozen --no-dev
+RUN uv sync --no-dev
 
 # Copy application code
 COPY backend ./backend

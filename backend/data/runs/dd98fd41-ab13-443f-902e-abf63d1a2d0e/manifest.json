@@ -1,0 +1,23 @@
+{
+  "job_id": "dd98fd41-ab13-443f-902e-abf63d1a2d0e",
+  "parameters": {
+    "job_id": "dd98fd41-ab13-443f-902e-abf63d1a2d0e",
+    "session_id": null,
+    "session_name": "Untitled Session",
+    "layer_id": "VIIRS_SNPP_DayNightBand_ENCC",
+    "data_source": "nasa_gibs",
+    "bbox": [
+      78.0,
+      4.0,
+      100.0,
+      24.0
+    ],
+    "time_start": "2026-04-22T18:30:00+00:00",
+    "time_end": "2026-04-24T18:30:00+00:00",
+    "resolution": 512,
+    "interpolation_model": "film",
+    "n_intermediate": 4,
+    "step_minutes": null,
+    "include_low_confidence": false
+  }
+}

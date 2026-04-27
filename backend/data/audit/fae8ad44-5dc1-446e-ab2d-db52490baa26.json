@@ -1,0 +1,27 @@
+[
+  {
+    "ts": "2026-04-20T20:33:44.502519+00:00",
+    "event": "pipeline_start",
+    "layer_id": "GOES-East_ABI_Band2_Red_Visible_1km",
+    "data_source": "nasa_gibs",
+    "bbox": [
+      -80.0,
+      20.0,
+      -70.0,
+      30.0
+    ],
+    "resolution": 1024,
+    "interpolation_model": "rife"
+  },
+  {
+    "ts": "2026-04-20T20:33:44.502519+00:00",
+    "event": "timestamps_generated",
+    "count": 7
+  },
+  {
+    "ts": "2026-04-20T20:33:44.513462+00:00",
+    "event": "stage_update",
+    "progress": 0.08,
+    "message": "Fetching 7 frames from DataSource.nasa_gibs"
+  }
+]

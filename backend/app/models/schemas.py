@@ -70,6 +70,8 @@ class PipelineRunRequest(BaseModel):
     n_intermediate: int = Field(default=4, ge=1, le=8)
     step_minutes: Optional[int] = Field(None, ge=1, le=1440)
     include_low_confidence: bool = False
+    session_id: Optional[str] = None
+    session_name: Optional[str] = "Untitled Session"
 
     @field_validator("bbox")
     @classmethod
@@ -136,6 +138,8 @@ class PipelineResult(BaseModel):
     interpolated_video_url: Optional[str] = None
     frames: list[FrameMetadata] = []
     metrics: Optional[QualityMetrics] = None
+    trajectories: list[dict] = []
+    alerts: list[dict] = []
     error: Optional[str] = None
     created_at: datetime
     completed_at: Optional[datetime] = None
@@ -204,6 +208,27 @@ class SessionResponse(BaseModel):
     session_id: str
     data_source: DataSource
     created_at: datetime
+
+
+class SessionSummaryResponse(BaseModel):
+    session_id: str
+    name: str
+    provider_default: str
+    user_id: Optional[str] = None
+    run_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+    last_run_at: Optional[datetime] = None
+    archived_at: Optional[datetime] = None
+
+
+class SessionCreateV2Request(BaseModel):
+    name: str
+    provider_default: DataSource = DataSource.nasa_gibs
+
+
+class SessionRenameRequest(BaseModel):
+    name: str
 
 
 # â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -340,3 +365,34 @@ class JobV2StatusResponse(BaseModel):
     created_at: str
     started_at: Optional[str]
     completed_at: Optional[str]
+
+
+class RunSummaryResponse(BaseModel):
+    run_id: str
+    job_id: str
+    session_id: str
+    user_id: Optional[str] = None
+    provider: str
+    status: str
+    priority: str
+    layer_id: str
+    bbox: list[float]
+    time_start: datetime
+    time_end: datetime
+    resolution: int
+    interpolation_model: str
+    n_intermediate: int = 4
+    step_minutes: Optional[int] = None
+    include_low_confidence: bool = False
+    params: dict = {}
+    metrics: dict = {}
+    manifest: dict = {}
+    result: Optional[dict] = None
+    error_message: Optional[str] = None
+    current_stage: Optional[str] = None
+    progress: float = 0.0
+    message: Optional[str] = None
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None

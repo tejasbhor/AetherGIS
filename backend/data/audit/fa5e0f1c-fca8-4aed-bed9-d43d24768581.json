@@ -1,0 +1,234 @@
+[
+  {
+    "ts": "2026-04-25T19:38:26.952355+00:00",
+    "event": "job_created",
+    "priority": "normal",
+    "queue_position": 1
+  },
+  {
+    "ts": "2026-04-25T19:38:27.058942+00:00",
+    "event": "celery_task_started",
+    "task_id": "fa5e0f1c-fca8-4aed-bed9-d43d24768581",
+    "worker": "celery@Friday"
+  },
+  {
+    "ts": "2026-04-25T19:38:27.080625+00:00",
+    "event": "pipeline_start",
+    "layer_id": "Himawari_AHI_Band13_Clean_Infrared",
+    "data_source": "nasa_gibs",
+    "bbox": [
+      105.0,
+      0.0,
+      130.0,
+      25.0
+    ],
+    "resolution": 1024,
+    "interpolation_model": "film"
+  },
+  {
+    "ts": "2026-04-25T19:38:27.088850+00:00",
+    "event": "timestamps_generated",
+    "count": 13
+  },
+  {
+    "ts": "2026-04-25T19:38:27.112696+00:00",
+    "event": "stage_update",
+    "progress": 0.08,
+    "message": "Fetching 13 frames from nasa_gibs"
+  },
+  {
+    "ts": "2026-04-25T19:38:48.350483+00:00",
+    "event": "ingestion_complete",
+    "requested": 13,
+    "fetched": 13
+  },
+  {
+    "ts": "2026-04-25T19:38:48.364439+00:00",
+    "event": "stage_update",
+    "progress": 0.22,
+    "message": "Fetched 13 valid source frames"
+  },
+  {
+    "ts": "2026-04-25T19:38:48.386835+00:00",
+    "event": "stage_update",
+    "progress": 0.28,
+    "message": "Preprocessing and normalising frame sequence"
+  },
+  {
+    "ts": "2026-04-25T19:38:49.567147+00:00",
+    "event": "preprocessing_complete",
+    "frames": 13,
+    "gaps": 12
+  },
+  {
+    "ts": "2026-04-25T19:38:49.588959+00:00",
+    "event": "stage_update",
+    "progress": 0.32,
+    "message": "Preprocessed 13 frames, 12 gaps"
+  },
+  {
+    "ts": "2026-04-25T19:38:49.599709+00:00",
+    "event": "interpolation_started",
+    "model": "film",
+    "engine_loaded": true
+  },
+  {
+    "ts": "2026-04-25T19:38:49.622555+00:00",
+    "event": "stage_update",
+    "progress": 0.35,
+    "message": "Interpolating pair 1 of 12"
+  },
+  {
+    "ts": "2026-04-25T19:39:48.021000+00:00",
+    "event": "stage_update",
+    "progress": 0.379,
+    "message": "Interpolating pair 2 of 12"
+  },
+  {
+    "ts": "2026-04-25T19:40:43.631373+00:00",
+    "event": "stage_update",
+    "progress": 0.408,
+    "message": "Interpolating pair 3 of 12"
+  },
+  {
+    "ts": "2026-04-25T19:41:37.346219+00:00",
+    "event": "stage_update",
+    "progress": 0.438,
+    "message": "Interpolating pair 4 of 12"
+  },
+  {
+    "ts": "2026-04-25T19:42:30.506694+00:00",
+    "event": "stage_update",
+    "progress": 0.467,
+    "message": "Interpolating pair 5 of 12"
+  },
+  {
+    "ts": "2026-04-25T19:43:20.615503+00:00",
+    "event": "stage_update",
+    "progress": 0.496,
+    "message": "Interpolating pair 6 of 12"
+  },
+  {
+    "ts": "2026-04-25T19:44:13.640111+00:00",
+    "event": "stage_update",
+    "progress": 0.525,
+    "message": "Interpolating pair 7 of 12"
+  },
+  {
+    "ts": "2026-04-25T19:45:08.151840+00:00",
+    "event": "stage_update",
+    "progress": 0.554,
+    "message": "Interpolating pair 8 of 12"
+  },
+  {
+    "ts": "2026-04-25T19:46:02.346801+00:00",
+    "event": "stage_update",
+    "progress": 0.583,
+    "message": "Interpolating pair 9 of 12"
+  },
+  {
+    "ts": "2026-04-25T19:46:56.620562+00:00",
+    "event": "stage_update",
+    "progress": 0.612,
+    "message": "Interpolating pair 10 of 12"
+  },
+  {
+    "ts": "2026-04-25T19:47:50.484001+00:00",
+    "event": "stage_update",
+    "progress": 0.642,
+    "message": "Interpolating pair 11 of 12"
+  },
+  {
+    "ts": "2026-04-25T19:48:48.093692+00:00",
+    "event": "stage_update",
+    "progress": 0.671,
+    "message": "Interpolating pair 12 of 12"
+  },
+  {
+    "ts": "2026-04-25T19:50:04.068964+00:00",
+    "event": "interpolation_complete",
+    "total_frames": 61,
+    "interpolated": 48
+  },
+  {
+    "ts": "2026-04-25T19:50:04.107409+00:00",
+    "event": "stage_update",
+    "progress": 0.76,
+    "message": "Exporting frame PNGs"
+  },
+  {
+    "ts": "2026-04-25T19:50:08.829995+00:00",
+    "event": "stage_update",
+    "progress": 0.82,
+    "message": "Generating uncertainty maps"
+  },
+  {
+    "ts": "2026-04-25T19:50:51.793636+00:00",
+    "event": "confidence_maps_generated",
+    "count": 48
+  },
+  {
+    "ts": "2026-04-25T19:50:51.812646+00:00",
+    "event": "stage_update",
+    "progress": 0.87,
+    "message": "Computing change detection maps"
+  },
+  {
+    "ts": "2026-04-25T19:51:21.710369+00:00",
+    "event": "change_maps_generated",
+    "count": 60
+  },
+  {
+    "ts": "2026-04-25T19:51:21.727659+00:00",
+    "event": "stage_update",
+    "progress": 0.91,
+    "message": "Running anomaly detection"
+  },
+  {
+    "ts": "2026-04-25T19:51:26.311097+00:00",
+    "event": "anomaly_detection_complete",
+    "anomalies": 17,
+    "total": 61
+  },
+  {
+    "ts": "2026-04-25T19:51:26.328551+00:00",
+    "event": "stage_update",
+    "progress": 0.95,
+    "message": "Computing quality metrics"
+  },
+  {
+    "ts": "2026-04-25T19:51:57.171856+00:00",
+    "event": "metrics_computed",
+    "tcs": 0.7472,
+    "fsi": 0.9995,
+    "avg_psnr": 24.24,
+    "anomaly_count": 17
+  },
+  {
+    "ts": "2026-04-25T19:51:57.187346+00:00",
+    "event": "stage_update",
+    "progress": 0.93,
+    "message": "Tracking cloud trajectories"
+  },
+  {
+    "ts": "2026-04-25T19:53:28.821926+00:00",
+    "event": "trajectories_tracked",
+    "count": 6
+  },
+  {
+    "ts": "2026-04-25T19:53:28.847859+00:00",
+    "event": "stage_update",
+    "progress": 1.0,
+    "message": "Pipeline completed successfully"
+  },
+  {
+    "ts": "2026-04-25T19:53:29.232424+00:00",
+    "event": "job_completed",
+    "duration_sec": 902.1418
+  },
+  {
+    "ts": "2026-04-25T19:53:29.244198+00:00",
+    "event": "celery_task_completed",
+    "task_id": "fa5e0f1c-fca8-4aed-bed9-d43d24768581"
+  }
+]

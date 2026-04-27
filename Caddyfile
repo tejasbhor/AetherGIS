@@ -1,0 +1,13 @@
+{
+	email {$CADDY_EMAIL:admin@example.com}
+}
+
+{$AETHERGIS_DOMAIN:localhost} {
+	reverse_proxy frontend:80
+	encode gzip
+}
+
+{$AETHERGIS_API_DOMAIN:api.localhost} {
+	reverse_proxy backend:8000
+	encode gzip
+}

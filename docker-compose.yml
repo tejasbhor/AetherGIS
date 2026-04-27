@@ -1,137 +1,145 @@
-version: "3.9"
-
-x-common-env: &common-env
-  REDIS_URL: redis://redis:6379/0
-  CELERY_BROKER_URL: redis://redis:6379/0
-  CELERY_RESULT_BACKEND: redis://redis:6379/1
-  CUDA_VISIBLE_DEVICES: "0"
-
-x-common-volumes: &common-volumes
-  - ./backend:/app/backend
-  - ./backend/data:/app/backend/data
-  - ./.env:/app/.env
-
 services:
-  # ── Redis (job queue + cache + rate-limiting) ───────────────────────────────
-  redis:
-    image: redis:7.2-alpine
-    container_name: AetherGIS_redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: >
-      redis-server
-      --appendonly yes
-      --maxmemory 2gb
-      --maxmemory-policy allkeys-lru
-      --save 60 1
+  caddy:
+    image: caddy:2-alpine
+    container_name: aethergis-proxy
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - aethergis_caddy_data:/data
+      - aethergis_caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_healthy
+    networks:
+      - aethergis_net
 
-  # ── API server ─────────────────────────────────────────────────────────────
-  api:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://api.localhost/api/v1}
+    container_name: aethergis-frontend
+    restart: unless-stopped
+    networks:
+      - aethergis_net
+
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: AetherGIS_api
-    ports:
-      - "8000:8000"
+    container_name: aethergis-backend
+    restart: unless-stopped
+    env_file: .env
     environment:
-      <<: *common-env
-    volumes: *common-volumes
+      ENVIRONMENT: production
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-aetherredispass}@redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://:${REDIS_PASSWORD:-aetherredispass}@redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://:${REDIS_PASSWORD:-aetherredispass}@redis:6379/1}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://aethergis:aethergis@postgres:5432/aethergis}
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
+    volumes:
+      - aethergis_runs:/app/backend/data/runs
+      - aethergis_exports:/app/backend/data/exports
+      - aethergis_cache:/app/backend/data/cache
+      - aethergis_logs:/app/backend/data/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
+    networks:
+      - aethergis_net
 
-  # ── Celery worker — HIGH priority (GPU) ───────────────────────────────────
-  celery_worker_high:
+  worker:
     build:
       context: .
       dockerfile: Dockerfile.worker
-    container_name: AetherGIS_worker_high
+    container_name: aethergis-worker
+    restart: unless-stopped
     command: >
-      celery -A backend.app.tasks.celery_app.celery_app worker
-      --queues=high
+      uv run celery -A backend.app.tasks.celery_app.celery_app worker
+      --loglevel=info
       --concurrency=1
-      --loglevel=info
-      --hostname=worker-high@%h
+      -P solo
+    env_file: .env
     environment:
-      <<: *common-env
-    volumes: *common-volumes
+      ENVIRONMENT: production
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-aetherredispass}@redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://:${REDIS_PASSWORD:-aetherredispass}@redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://:${REDIS_PASSWORD:-aetherredispass}@redis:6379/1}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://aethergis:aethergis@postgres:5432/aethergis}
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    restart: unless-stopped
+    volumes:
+      - aethergis_runs:/app/backend/data/runs
+      - aethergis_exports:/app/backend/data/exports
+      - aethergis_cache:/app/backend/data/cache
+      - aethergis_logs:/app/backend/data/logs
+    networks:
+      - aethergis_net
 
-  # ── Celery worker — NORMAL priority ───────────────────────────────────────
-  celery_worker_normal:
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
-    container_name: AetherGIS_worker_normal
-    command: >
-      celery -A backend.app.tasks.celery_app.celery_app worker
-      --queues=normal,low
-      --concurrency=2
-      --loglevel=info
-      --hostname=worker-normal@%h
-    environment:
-      <<: *common-env
-    volumes: *common-volumes
-    depends_on:
-      redis:
-        condition: service_healthy
+  postgres:
+    image: postgres:16-alpine
+    container_name: aethergis-postgres
     restart: unless-stopped
-
-  # ── Celery Beat — periodic metric aggregation ──────────────────────────────
-  celery_beat:
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
-    container_name: AetherGIS_beat
-    command: >
-      celery -A backend.app.tasks.celery_app.celery_app beat
-      --loglevel=info
-    environment:
-      <<: *common-env
-    volumes: *common-volumes
-    depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  # ── Flower — Celery monitoring UI ─────────────────────────────────────────
-  flower:
-    image: mher/flower:2.0
-    container_name: AetherGIS_flower
+    env_file: .env
     ports:
-      - "5555:5555"
+      - "5432:5432"
     environment:
-      CELERY_BROKER_URL: redis://redis:6379/0
-      FLOWER_PORT: 5555
-    depends_on:
-      redis:
-        condition: service_healthy
+      POSTGRES_DB: ${POSTGRES_DB:-aethergis}
+      POSTGRES_USER: ${POSTGRES_USER:-aethergis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aethergis}
+    volumes:
+      - aethergis_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aethergis} -d ${POSTGRES_DB:-aethergis}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aethergis_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: aethergis-redis
     restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-aetherredispass}
+    volumes:
+      - aethergis_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-aetherredispass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aethergis_net
+
+networks:
+  aethergis_net:
+    driver: bridge
 
 volumes:
-  redis_data:
+  aethergis_db_data:
+  aethergis_redis_data:
+  aethergis_runs:
+  aethergis_exports:
+  aethergis_cache:
+  aethergis_logs:
+  aethergis_caddy_data:
+  aethergis_caddy_config:

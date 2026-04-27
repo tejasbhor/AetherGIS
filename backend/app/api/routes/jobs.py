@@ -22,6 +22,7 @@ from backend.app.config import get_settings
 from backend.app.models.schemas import InterpolationModel, Resolution, DataSource
 from backend.app.services.job_manager import (
     JobPriority,
+    can_accept_new_job,
     cancel_job,
     create_job,
     get_job,
@@ -47,6 +48,8 @@ settings = get_settings()
 class JobSubmitRequest(BaseModel):
     layer_id: str = Field(..., examples=["GOES-East_ABI_Band2_Red_Visible_1km"])
     data_source: DataSource = DataSource.nasa_gibs
+    session_id: Optional[str] = None
+    session_name: Optional[str] = Field(default=None, max_length=255)
     bbox: list[float] = Field(..., min_length=4, max_length=4)
     time_start: datetime
     time_end: datetime
@@ -86,6 +89,8 @@ class JobLogEntry(BaseModel):
 def _build_payload(job_id: str, req: JobSubmitRequest) -> dict[str, Any]:
     return {
         "job_id": job_id,
+        "session_id": req.session_id,
+        "session_name": req.session_name,
         "layer_id": req.layer_id,
         "data_source": req.data_source.value,
         "bbox": req.bbox,
@@ -204,12 +209,22 @@ async def _run_job_async(payload: dict, job_id: str) -> None:
 @router.post("", response_model=dict, status_code=202)
 async def submit_job(request: JobSubmitRequest) -> dict:
     """Submit a new pipeline job with priority queue support."""
+    allowed, reason = can_accept_new_job()
+    if not allowed:
+        raise HTTPException(status_code=429, detail=reason)
+
     job_id = str(uuid.uuid4())
     manifest = _build_manifest(job_id, request)
-    record = create_job(job_id, manifest=manifest, priority=request.priority)
-    save_manifest(job_id, manifest)
-
     payload = _build_payload(job_id, request)
+    record = create_job(
+        job_id,
+        manifest=manifest,
+        priority=request.priority,
+        payload=payload,
+        session_id=request.session_id,
+        session_name=request.session_name,
+    )
+    save_manifest(job_id, manifest)
 
     # Try Celery first, fallback to in-process async
     try:

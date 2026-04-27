@@ -1,0 +1,13 @@
+{
+  "total_jobs": 18,
+  "completed_jobs": 18,
+  "failed_jobs": 0,
+  "total_frames_generated": 855,
+  "total_interpolated_frames": 647,
+  "avg_psnr": 23.066680094555753,
+  "avg_ssim": 0.7426633353133645,
+  "avg_confidence": 0.5824457593688362,
+  "rejection_rate": 0.0,
+  "anomaly_rate": 0.0,
+  "last_updated": "2026-04-26T15:51:55.107666+00:00"
+}

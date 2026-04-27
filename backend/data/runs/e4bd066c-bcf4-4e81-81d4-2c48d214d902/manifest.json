@@ -1,0 +1,23 @@
+{
+  "job_id": "e4bd066c-bcf4-4e81-81d4-2c48d214d902",
+  "parameters": {
+    "job_id": "e4bd066c-bcf4-4e81-81d4-2c48d214d902",
+    "session_id": null,
+    "session_name": "Untitled Session",
+    "layer_id": "MODIS_Terra_CorrectedReflectance_TrueColor",
+    "data_source": "nasa_gibs",
+    "bbox": [
+      65.0,
+      5.0,
+      100.0,
+      38.0
+    ],
+    "time_start": "2026-04-08T18:30:00+00:00",
+    "time_end": "2026-04-24T18:30:00+00:00",
+    "resolution": 512,
+    "interpolation_model": "film",
+    "n_intermediate": 4,
+    "step_minutes": null,
+    "include_low_confidence": false
+  }
+}

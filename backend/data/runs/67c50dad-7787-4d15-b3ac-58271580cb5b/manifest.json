@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "job_id": "67c50dad-7787-4d15-b3ac-58271580cb5b",
+  "submitted_at": "2026-04-20T20:57:33.918807Z",
+  "parameters": {
+    "job_id": "67c50dad-7787-4d15-b3ac-58271580cb5b",
+    "layer_id": "INSAT3D_TIR1",
+    "data_source": "insat",
+    "bbox": [
+      70.0,
+      10.0,
+      90.0,
+      30.0
+    ],
+    "time_start": "2026-04-20T20:00:00+00:00",
+    "time_end": "2026-04-20T20:30:00+00:00",
+    "resolution": 512,
+    "interpolation_model": "rife",
+    "n_intermediate": 4,
+    "step_minutes": null,
+    "include_low_confidence": false
+  },
+  "model": {
+    "name": "rife",
+    "weight_hash": null
+  },
+  "preprocessing": {
+    "bbox": [
+      70.0,
+      10.0,
+      90.0,
+      30.0
+    ],
+    "resolution": 512
+  },
+  "config_snapshot": {
+    "flow_consistency_threshold": 0.15,
+    "flow_rejection_threshold": 0.4,
+    "large_diff_threshold": 0.3,
+    "cs_weight_flow": 0.4,
+    "cs_weight_mad": 0.35,
+    "cs_weight_gap": 0.25,
+    "high_confidence_threshold": 0.75,
+    "medium_confidence_threshold": 0.45
+  },
+  "wms_urls": {
+    "nasa_gibs": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi",
+    "bhuvan": "https://bhuvan-ras2.nrsc.gov.in/bhuvan/wms"
+  }
+}

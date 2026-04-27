@@ -53,6 +53,37 @@ async def fetch_live_gibs_layer_ids() -> set[str]:
     return live_ids
 
 
+async def fetch_live_mosdac_layer_ids() -> set[str]:
+    cached = _capabilities_cache.get('insat')
+    now = time.time()
+    if cached and now - cached[0] < _CACHE_TTL_SECONDS:
+        return cached[1]
+
+    params: dict[str, str] = {
+        'SERVICE': 'WMS',
+        'REQUEST': 'GetCapabilities',
+        'VERSION': '1.1.1',
+    }
+    if settings.mosdac_api_key:
+        params['key'] = settings.mosdac_api_key
+
+    async with httpx.AsyncClient(timeout=settings.wms_timeout_seconds, follow_redirects=True) as client:
+        response = await client.get(settings.mosdac_wms_url, params=params)
+        response.raise_for_status()
+        root = ET.fromstring(response.text)
+
+    live_ids: set[str] = set()
+    for layer in root.iter():
+        if not layer.tag.endswith('Layer'):
+            continue
+        name = _find_text(layer, 'Name')
+        if name:
+            live_ids.add(name)
+
+    _capabilities_cache['insat'] = (now, live_ids)
+    return live_ids
+
+
 async def get_layer_catalog(data_source: str | None = None) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
 
@@ -102,15 +133,36 @@ async def get_layer_catalog(data_source: str | None = None) -> list[dict[str, An
         ])
 
     if not data_source or data_source == 'insat':
-        records.extend([
-            {
-                'layer_id': layer_id,
-                'data_source': 'insat',
-                'crs': 'EPSG:4326',
-                'availability_checked_live': False,
-                **meta,
-            }
-            for layer_id, meta in INSAT_LAYERS.items()
-        ])
+        try:
+            live_ids = await fetch_live_mosdac_layer_ids()
+            curated_insat = [
+                {
+                    'layer_id': layer_id,
+                    'data_source': 'insat',
+                    'crs': 'EPSG:4326',
+                    'availability_checked_live': True,
+                    **meta,
+                }
+                for layer_id, meta in INSAT_LAYERS.items()
+                if layer_id in live_ids
+            ]
+
+            missing = [layer_id for layer_id in INSAT_LAYERS if layer_id not in live_ids]
+            if missing:
+                logger.warning('Some curated INSAT layers are not present in live MOSDAC capabilities', missing_layers=missing)
+
+            records.extend(curated_insat)
+        except Exception as exc:
+            logger.warning('Falling back to curated INSAT layer registry because live capabilities fetch failed', error=str(exc))
+            records.extend([
+                {
+                    'layer_id': layer_id,
+                    'data_source': 'insat',
+                    'crs': 'EPSG:4326',
+                    'availability_checked_live': False,
+                    **meta,
+                }
+                for layer_id, meta in INSAT_LAYERS.items()
+            ])
 
     return records

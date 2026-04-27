@@ -1,0 +1,23 @@
+{
+  "job_id": "679006fb-bbbd-4395-b9ae-b6628c001904",
+  "parameters": {
+    "job_id": "679006fb-bbbd-4395-b9ae-b6628c001904",
+    "session_id": null,
+    "session_name": "Untitled Session",
+    "layer_id": "Himawari_AHI_Band3_Red_Visible_1km",
+    "data_source": "nasa_gibs",
+    "bbox": [
+      52.0,
+      8.0,
+      78.0,
+      28.0
+    ],
+    "time_start": "2026-04-25T12:40:00+00:00",
+    "time_end": "2026-04-25T14:40:00+00:00",
+    "resolution": 512,
+    "interpolation_model": "film",
+    "n_intermediate": 4,
+    "step_minutes": null,
+    "include_low_confidence": false
+  }
+}

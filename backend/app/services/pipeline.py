@@ -358,16 +358,40 @@ async def run_pipeline(
         "anomaly_count": anomaly_count,
     })
 
+    # ── Trajectory tracking (MODULE 1) ─────────────────────────────────────
+    report(0.93, 'Tracking cloud trajectories')
+    trajectories = []
+    try:
+        from backend.app.services.trajectory_tracker import track_trajectories
+        trajectories = track_trajectories(all_frames, job_id)
+        append_audit_event(job_id, "trajectories_tracked", {"count": len(trajectories)})
+    except Exception as exc:
+        logger.warning("Trajectory tracking failed", error=str(exc))
+
     completed_at = datetime.now(timezone.utc)
     report(1.0, 'Pipeline completed successfully')
     logger.info('Pipeline completed', job_id=job_id, total_frames=len(all_frames),
                 duration_seconds=(completed_at - created_at).total_seconds())
 
+    # Map anomaly results to alerts dict for schema compatibility
+    alerts = []
+    if 'anomaly_results' in locals():
+        for ar in anomaly_results:
+            if ar.label.value == "ANOMALY":
+                alerts.append({
+                    "frame_index": ar.frame_index,
+                    "score": round(ar.anomaly_score, 4),
+                    "type": "SPIKE" if ar.intensity_spike else "MOTION",
+                    "details": ar.details
+                })
+
     result = PipelineResult(
         job_id=job_id, status=JobStatus.completed, layer_id=layer_id,
         data_source=data_source, bbox=bbox, time_start=time_start, time_end=time_end,
         original_video_url=None, interpolated_video_url=None,
-        frames=all_metadata, metrics=metrics, created_at=created_at, completed_at=completed_at,
+        frames=all_metadata, metrics=metrics,
+        trajectories=trajectories, alerts=alerts,
+        created_at=created_at, completed_at=completed_at,
     )
 
     # Update global metrics (MODULE 10)

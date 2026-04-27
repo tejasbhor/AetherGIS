@@ -1,0 +1,60 @@
+[
+  {
+    "ts": "2026-04-25T20:36:18.229135+00:00",
+    "event": "job_created",
+    "priority": "normal",
+    "queue_position": 1
+  },
+  {
+    "ts": "2026-04-25T20:36:18.258438+00:00",
+    "event": "celery_task_started",
+    "task_id": "dd98fd41-ab13-443f-902e-abf63d1a2d0e",
+    "worker": "celery@Friday"
+  },
+  {
+    "ts": "2026-04-25T20:36:18.268414+00:00",
+    "event": "pipeline_start",
+    "layer_id": "VIIRS_SNPP_DayNightBand_ENCC",
+    "data_source": "nasa_gibs",
+    "bbox": [
+      78.0,
+      4.0,
+      100.0,
+      24.0
+    ],
+    "resolution": 512,
+    "interpolation_model": "film"
+  },
+  {
+    "ts": "2026-04-25T20:36:18.276374+00:00",
+    "event": "timestamps_generated",
+    "count": 3
+  },
+  {
+    "ts": "2026-04-25T20:36:18.291360+00:00",
+    "event": "stage_update",
+    "progress": 0.08,
+    "message": "Fetching 3 frames from nasa_gibs"
+  },
+  {
+    "ts": "2026-04-25T20:36:21.115230+00:00",
+    "event": "ingestion_complete",
+    "requested": 3,
+    "fetched": 1
+  },
+  {
+    "ts": "2026-04-25T20:36:21.116988+00:00",
+    "event": "pipeline_aborted",
+    "reason": "insufficient_frames"
+  },
+  {
+    "ts": "2026-04-25T20:36:21.167902+00:00",
+    "event": "job_completed",
+    "duration_sec": 2.880966
+  },
+  {
+    "ts": "2026-04-25T20:36:21.178002+00:00",
+    "event": "celery_task_completed",
+    "task_id": "dd98fd41-ab13-443f-902e-abf63d1a2d0e"
+  }
+]

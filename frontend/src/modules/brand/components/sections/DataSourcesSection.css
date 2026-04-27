@@ -1,0 +1,272 @@
+.data-sources-section {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  padding: 160px var(--brand-page-gutter) 0; /* Increased clearance for navbar */
+  background: transparent;
+  color: #fff;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.sources-container {
+  width: min(100%, var(--brand-page-width));
+  margin: 0 auto;
+}
+
+.sources-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 80px;
+  align-items: flex-start; /* Ensure top alignment across columns */
+}
+
+/* --- Left Column: Narrative & Visual --- */
+.sources-left {
+  position: relative;
+}
+
+.sources-title {
+  font-size: clamp(2.8rem, 5vw, 4.2rem); /* Increased scale */
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  margin: 16px 0 20px;
+}
+
+.sources-title-gradient {
+  background: linear-gradient(to right, #60a5fa, #22d3ee);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.sources-description {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #94a3b8;
+  max-width: 480px;
+}
+
+/* --- Right Column: Source Cards --- */
+.sources-right {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.source-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #64748b;
+}
+
+.group-icon-blue { color: #3b82f6; }
+.group-icon-purple { color: #a855f7; }
+
+.source-card {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+}
+
+.primary-card {
+  padding: 32px;
+  display: flex;
+  justify-content: space-between;
+  border-color: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.4);
+}
+
+.card-main-content {
+  display: flex;
+  gap: 24px;
+  max-width: 65%;
+}
+
+.logo-box {
+  width: 64px;
+  height: 64px;
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+  flex-shrink: 0;
+}
+
+.nasa-logo {
+  background: radial-gradient(circle at center, #1e3a8a, #0f172a);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #fff;
+}
+
+.source-info h3 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.source-subtitle {
+  font-size: 0.9rem;
+  color: #60a5fa;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.source-divider {
+  width: 60px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin-bottom: 16px;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  margin-bottom: 16px;
+}
+
+.badge-primary { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+.badge-purple { background: rgba(168, 85, 247, 0.1); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.2); }
+.badge-ghost { background: rgba(255, 255, 255, 0.05); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.1); }
+
+.source-text {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.card-satellite-visual {
+  position: absolute;
+  right: -10%;
+  top: 10%;
+  width: 45%;
+  pointer-events: none;
+  filter: drop-shadow(-20px 20px 40px rgba(0, 0, 0, 0.5));
+}
+
+.card-satellite-visual img {
+  width: 100%;
+  height: auto;
+  transform: rotate(-15deg);
+}
+
+.group-cards-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.compact-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.compact-card .logo-box {
+  width: 48px;
+  height: 48px;
+}
+
+.mosdac-logo { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+.isro-logo { background: linear-gradient(135deg, #a855f7, #7e22ce); }
+
+.compact-card h3 { font-size: 1.15rem; }
+.compact-card .source-subtitle { font-size: 0.8rem; margin-bottom: 8px; }
+.compact-card .source-text { font-size: 0.82rem; }
+
+.sources-footer-pill {
+  width: 100%;
+  display: flex;
+  gap: 16px;
+  padding: 16px 24px;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(59, 130, 246, 0.12);
+  border-radius: 12px;
+  align-items: center;
+}
+
+.footer-pill-icon { color: #3b82f6; flex-shrink: 0; }
+.sources-footer-pill p { font-size: 0.9rem; color: #cbd5e1; margin: 0; }
+
+.text-highlight-blue { color: #60a5fa; font-weight: 500; }
+
+.sources-tech-specs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  max-width: 400px;
+  margin-top: 40px;
+}
+
+.tech-spec-item {
+  background: rgba(15, 23, 42, 0.3);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 16px 20px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.3s ease;
+}
+
+.tech-spec-item:hover {
+  background: rgba(15, 23, 42, 0.5);
+  border-color: rgba(59, 130, 246, 0.2);
+  transform: translateY(-2px);
+}
+
+.spec-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.spec-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Responsive --- */
+@media (max-height: 850px) {
+  .data-sources-section { padding: 160px 20px 0; }
+  .primary-card { padding: 24px; }
+  .sources-title { font-size: 2.8rem; }
+  .sources-description { margin-bottom: 24px; }
+  .sources-right { gap: 20px; }
+}
+@media (max-width: 1100px) {
+  .sources-content-grid { grid-template-columns: 1fr; gap: 60px; }
+  .sources-left { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .sources-earth-visual { width: 80%; margin: 0; }
+}

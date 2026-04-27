@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import re
 import time
@@ -221,26 +221,45 @@ def _parse_time_extent(extent_text: str, fallback_step_minutes: int) -> tuple[Op
     if not extent_text:
         return None, None, fallback_step_minutes
 
-    if '/' in extent_text and not ',' in extent_text:
-        parts = extent_text.split('/')
-        if len(parts) >= 2:
-            start = _parse_iso_datetime(parts[0])
-            end = _parse_iso_datetime(parts[1])
-            step = _parse_iso_duration_to_minutes(parts[2]) if len(parts) >= 3 else fallback_step_minutes
-            return start, end, step or fallback_step_minutes
+    parts_to_parse = [item.strip() for item in extent_text.split(',') if item.strip()]
+    all_starts: list[datetime] = []
+    all_ends: list[datetime] = []
+    all_steps: list[int] = []
 
-    if ',' in extent_text:
-        entries = [item.strip() for item in extent_text.split(',') if item.strip()]
-        parsed = [_parse_iso_datetime(item) for item in entries]
-        parsed = [item for item in parsed if item is not None]
-        if parsed:
-            step = None
-            if len(parsed) >= 2:
-                step = max(1, round((parsed[-1] - parsed[-2]).total_seconds() / 60))
-            return parsed[0], parsed[-1], step or fallback_step_minutes
+    for part in parts_to_parse:
+        if '/' in part:
+            interval_parts = part.split('/')
+            start = _parse_iso_datetime(interval_parts[0])
+            end = _parse_iso_datetime(interval_parts[1])
+            step = _parse_iso_duration_to_minutes(interval_parts[2]) if len(interval_parts) >= 3 else None
+            
+            if start: all_starts.append(start)
+            if end: all_ends.append(end)
+            if step: all_steps.append(step)
+        else:
+            dt = _parse_iso_datetime(part)
+            if dt:
+                all_starts.append(dt)
+                all_ends.append(dt)
 
-    single = _parse_iso_datetime(extent_text)
-    return single, single, fallback_step_minutes
+    if not all_starts or not all_ends:
+        return None, None, fallback_step_minutes
+
+    # Take the global min/max across all disjoint intervals
+    final_start = min(all_starts)
+    final_end = max(all_ends)
+    
+    # Take the step from the last interval (usually the most relevant) or fallback
+    final_step = all_steps[-1] if all_steps else None
+    
+    # If no step found but we have multiple points, estimate it
+    if final_step is None and len(all_starts) > 1:
+        # Estimate from the last two points if they were discrete
+        delta = (all_ends[-1] - all_starts[-1]).total_seconds()
+        if delta > 0:
+             final_step = max(1, round(delta / 60))
+
+    return final_start, final_end, final_step or fallback_step_minutes
 
 
 def _prefer_more_precise(

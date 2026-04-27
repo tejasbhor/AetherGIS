@@ -1,0 +1,367 @@
+"""Persistent metadata store for sessions, runs, and artifacts."""
+from __future__ import annotations
+
+import json
+import uuid
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any, Optional
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from backend.app.config import get_settings
+from backend.app.db import engine, session_scope
+from backend.app.models.db_models import ArtifactRecord, Base, RunRecord, SessionRecord
+from backend.app.utils.logging import get_logger
+
+settings = get_settings()
+logger = get_logger(__name__)
+
+DEMO_SESSION_ID = "00000000-0000-0000-0000-000000000001"
+
+
+def init_database() -> None:
+    Base.metadata.create_all(bind=engine)
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _json_dump(value: Any) -> str:
+    return json.dumps(value, default=str)
+
+
+def _json_load(value: Optional[str], fallback: Any = None) -> Any:
+    if not value:
+        return fallback
+    try:
+        return json.loads(value)
+    except Exception:
+        return fallback
+
+
+def _to_datetime(value: Any) -> datetime:
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    if isinstance(value, str):
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    raise ValueError(f"Unsupported datetime value: {value!r}")
+
+
+def ensure_demo_session(provider_default: str = "nasa_gibs", name: str = "Demo Workspace") -> SessionRecord:
+    with session_scope() as db:
+        session = db.get(SessionRecord, DEMO_SESSION_ID)
+        if session is None:
+            session = SessionRecord(
+                id=DEMO_SESSION_ID,
+                name=name,
+                provider_default=provider_default,
+            )
+            db.add(session)
+            db.flush()
+        elif session.provider_default != provider_default:
+            session.provider_default = provider_default
+            session.updated_at = _utcnow()
+            db.add(session)
+            db.flush()
+        return session
+
+
+def create_session(name: str, provider_default: str = "nasa_gibs", user_id: str | None = None) -> dict[str, Any]:
+    with session_scope() as db:
+        record = SessionRecord(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            name=name.strip() or "Untitled Session",
+            provider_default=provider_default,
+        )
+        db.add(record)
+        db.flush()
+        return serialize_session(record, db)
+
+
+def rename_session(session_id: str, name: str) -> Optional[dict[str, Any]]:
+    with session_scope() as db:
+        record = db.get(SessionRecord, session_id)
+        if record is None:
+            return None
+        record.name = name.strip() or record.name
+        record.updated_at = _utcnow()
+        db.add(record)
+        db.flush()
+        return serialize_session(record, db)
+
+
+def archive_session(session_id: str) -> bool:
+    with session_scope() as db:
+        record = db.get(SessionRecord, session_id)
+        if record is None:
+            return False
+        record.archived_at = _utcnow()
+        record.updated_at = _utcnow()
+        db.add(record)
+        return True
+
+
+def get_session(session_id: str) -> Optional[dict[str, Any]]:
+    with session_scope() as db:
+        record = db.get(SessionRecord, session_id)
+        if record is None:
+            return None
+        return serialize_session(record, db)
+
+
+def list_sessions(include_archived: bool = False) -> list[dict[str, Any]]:
+    with session_scope() as db:
+        stmt = select(SessionRecord).order_by(SessionRecord.updated_at.desc())
+        if not include_archived:
+            stmt = stmt.where(SessionRecord.archived_at.is_(None))
+        records = db.scalars(stmt).all()
+        return [serialize_session(record, db) for record in records]
+
+
+def serialize_session(record: SessionRecord, db: Session) -> dict[str, Any]:
+    run_count = db.scalar(select(func.count(RunRecord.id)).where(RunRecord.session_id == record.id)) or 0
+    last_run_at = db.scalar(select(func.max(RunRecord.created_at)).where(RunRecord.session_id == record.id))
+    return {
+        "session_id": record.id,
+        "name": record.name,
+        "provider_default": record.provider_default,
+        "user_id": record.user_id,
+        "run_count": int(run_count),
+        "created_at": record.created_at.isoformat(),
+        "updated_at": record.updated_at.isoformat(),
+        "last_run_at": last_run_at.isoformat() if last_run_at else None,
+        "archived_at": record.archived_at.isoformat() if record.archived_at else None,
+    }
+
+
+def create_run(
+    *,
+    job_id: str,
+    payload: dict[str, Any],
+    manifest: dict[str, Any] | None = None,
+    priority: str = "normal",
+    session_id: str | None = None,
+    session_name: str | None = None,
+    user_id: str | None = None,
+) -> dict[str, Any]:
+    target_session_id = session_id
+    if target_session_id is None:
+        target_session_id = DEMO_SESSION_ID
+        ensure_demo_session(provider_default=payload.get("data_source", "nasa_gibs"), name=session_name or "Demo Workspace")
+    elif session_name:
+        rename_session(target_session_id, session_name)
+
+    expires_at = _utcnow() + timedelta(hours=settings.run_artifact_ttl_hours)
+    with session_scope() as db:
+        run = db.get(RunRecord, job_id)
+        if run is None:
+            run = RunRecord(
+                id=job_id,
+                session_id=target_session_id,
+                user_id=user_id,
+                provider=payload.get("data_source", "nasa_gibs"),
+                status="QUEUED",
+                priority=priority,
+                layer_id=payload["layer_id"],
+                aoi_bbox_json=_json_dump(payload["bbox"]),
+                time_start=_to_datetime(payload["time_start"]),
+                time_end=_to_datetime(payload["time_end"]),
+                resolution=int(payload.get("resolution", 1024)),
+                interpolation_model=str(payload.get("interpolation_model", "film")),
+                n_intermediate=int(payload.get("n_intermediate", 4)),
+                step_minutes=payload.get("step_minutes"),
+                include_low_confidence=bool(payload.get("include_low_confidence", False)),
+                params_json=_json_dump(payload),
+                manifest_json=_json_dump(manifest) if manifest else None,
+                expires_at=expires_at,
+            )
+            db.add(run)
+        else:
+            run.session_id = target_session_id
+            run.provider = payload.get("data_source", run.provider)
+            run.priority = priority
+            run.layer_id = payload["layer_id"]
+            run.aoi_bbox_json = _json_dump(payload["bbox"])
+            run.time_start = _to_datetime(payload["time_start"])
+            run.time_end = _to_datetime(payload["time_end"])
+            run.resolution = int(payload.get("resolution", run.resolution))
+            run.interpolation_model = str(payload.get("interpolation_model", run.interpolation_model))
+            run.n_intermediate = int(payload.get("n_intermediate", run.n_intermediate))
+            run.step_minutes = payload.get("step_minutes")
+            run.include_low_confidence = bool(payload.get("include_low_confidence", run.include_low_confidence))
+            run.params_json = _json_dump(payload)
+            run.manifest_json = _json_dump(manifest) if manifest else run.manifest_json
+            run.expires_at = expires_at
+            db.add(run)
+
+        session_record = db.get(SessionRecord, target_session_id)
+        if session_record:
+            session_record.updated_at = _utcnow()
+            db.add(session_record)
+
+        db.flush()
+        return serialize_run(run)
+
+
+def update_run_state(
+    job_id: str,
+    *,
+    status: str | None = None,
+    progress: float | None = None,
+    stage: str | None = None,
+    message: str | None = None,
+    error: str | None = None,
+    result: dict[str, Any] | None = None,
+    manifest: dict[str, Any] | None = None,
+) -> Optional[dict[str, Any]]:
+    with session_scope() as db:
+        run = db.get(RunRecord, job_id)
+        if run is None:
+            return None
+
+        if status:
+            run.status = status
+            if status == "RUNNING" and run.started_at is None:
+                run.started_at = _utcnow()
+            if status in {"COMPLETED", "FAILED", "CANCELLED"}:
+                run.completed_at = _utcnow()
+        if progress is not None:
+            run.progress = max(0.0, min(1.0, progress))
+        if stage:
+            run.current_stage = stage
+        if message is not None:
+            run.message = message
+        if error is not None:
+            run.error_message = error
+        if result is not None:
+            run.result_json = _json_dump(result)
+            metrics = result.get("metrics") if isinstance(result, dict) else None
+            if metrics is not None:
+                run.metrics_json = _json_dump(metrics)
+        if manifest is not None:
+            run.manifest_json = _json_dump(manifest)
+
+        session_record = db.get(SessionRecord, run.session_id)
+        if session_record:
+            session_record.updated_at = _utcnow()
+            db.add(session_record)
+
+        db.add(run)
+        db.flush()
+        return serialize_run(run)
+
+
+def get_run(job_id: str) -> Optional[dict[str, Any]]:
+    with session_scope() as db:
+        run = db.get(RunRecord, job_id)
+        if run is None:
+            return None
+        return serialize_run(run)
+
+
+def list_runs(session_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+    with session_scope() as db:
+        stmt = select(RunRecord).order_by(RunRecord.created_at.desc()).limit(limit)
+        if session_id:
+            stmt = stmt.where(RunRecord.session_id == session_id)
+        runs = db.scalars(stmt).all()
+        return [serialize_run(run) for run in runs]
+
+
+def delete_run(job_id: str) -> bool:
+    with session_scope() as db:
+        run = db.get(RunRecord, job_id)
+        if run is None:
+            return False
+        db.delete(run)
+        return True
+
+
+def upsert_run_artifacts(job_id: str, export_dir: Path) -> list[dict[str, Any]]:
+    with session_scope() as db:
+        run = db.get(RunRecord, job_id)
+        if run is None:
+            return []
+
+        existing = {artifact.kind: artifact for artifact in run.artifacts}
+        discovered: list[ArtifactRecord] = []
+        expiry = _utcnow() + timedelta(hours=settings.run_artifact_ttl_hours)
+
+        candidates: list[tuple[str, Path]] = [
+            ("metadata", export_dir / "metadata.json"),
+            ("video_original", export_dir / "original.mp4"),
+            ("video_interpolated", export_dir / "interpolated.mp4"),
+            ("video_all", export_dir / "all.mp4"),
+            ("report_html", export_dir / "report.html"),
+        ]
+
+        for kind, path in candidates:
+            if not path.exists() or not path.is_file():
+                continue
+            artifact = existing.get(kind)
+            if artifact is None:
+                artifact = ArtifactRecord(
+                    id=str(uuid.uuid4()),
+                    run_id=job_id,
+                    kind=kind,
+                    file_path=str(path),
+                )
+            artifact.size_bytes = path.stat().st_size
+            artifact.file_path = str(path)
+            artifact.expires_at = expiry
+            db.add(artifact)
+            discovered.append(artifact)
+
+        db.flush()
+        return [serialize_artifact(item) for item in discovered]
+
+
+def serialize_run(run: RunRecord) -> dict[str, Any]:
+    return {
+        "run_id": run.id,
+        "job_id": run.id,
+        "session_id": run.session_id,
+        "user_id": run.user_id,
+        "provider": run.provider,
+        "status": run.status,
+        "priority": run.priority,
+        "layer_id": run.layer_id,
+        "bbox": _json_load(run.aoi_bbox_json, []),
+        "time_start": run.time_start.isoformat(),
+        "time_end": run.time_end.isoformat(),
+        "resolution": run.resolution,
+        "interpolation_model": run.interpolation_model,
+        "n_intermediate": run.n_intermediate,
+        "step_minutes": run.step_minutes,
+        "include_low_confidence": run.include_low_confidence,
+        "params": _json_load(run.params_json, {}),
+        "metrics": _json_load(run.metrics_json, {}),
+        "manifest": _json_load(run.manifest_json, {}),
+        "result": _json_load(run.result_json, None),
+        "error_message": run.error_message,
+        "current_stage": run.current_stage,
+        "progress": run.progress,
+        "message": run.message,
+        "created_at": run.created_at.isoformat(),
+        "started_at": run.started_at.isoformat() if run.started_at else None,
+        "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+        "expires_at": run.expires_at.isoformat() if run.expires_at else None,
+    }
+
+
+def serialize_artifact(artifact: ArtifactRecord) -> dict[str, Any]:
+    return {
+        "artifact_id": artifact.id,
+        "run_id": artifact.run_id,
+        "kind": artifact.kind,
+        "file_path": artifact.file_path,
+        "size_bytes": artifact.size_bytes,
+        "checksum": artifact.checksum,
+        "created_at": artifact.created_at.isoformat(),
+        "expires_at": artifact.expires_at.isoformat() if artifact.expires_at else None,
+    }

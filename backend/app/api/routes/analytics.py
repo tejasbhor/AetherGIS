@@ -17,7 +17,7 @@ import json
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -439,6 +439,37 @@ async def stream_frames(job_id: str, request: Request) -> StreamingResponse:
 # ══════════════════════════════════════════════════════════════════════════════
 # MODULE 14 — System Performance
 # ══════════════════════════════════════════════════════════════════════════════
+
+@system_router.get("/config")
+async def get_system_config() -> dict:
+    """Expose system configuration mode for frontend adaptation."""
+    return {
+        "mode": settings.aether_mode,
+        "version": "1.0.0",
+        "gpu_support": True,
+        "is_dev_preview": settings.aether_mode != "production",
+        "features": {
+            "auth": settings.aether_mode == "production",
+            "queuing": settings.aether_mode == "production",
+            "mosdac_offline": settings.aether_mode == "development"
+        }
+    }
+
+
+@system_router.get("/session/status")
+async def get_session_status(session_id: str = Query("")) -> dict:
+    """Check the status of the current user session (granted vs waiting)."""
+    from backend.app.services.session_lock import lock_service
+    return lock_service.get_status(session_id)
+
+
+@system_router.post("/session/heartbeat")
+async def post_session_heartbeat(session_id: str = Query("")) -> dict:
+    """Extend the session lock for an active user."""
+    from backend.app.services.session_lock import lock_service
+    lock_service.heartbeat(session_id)
+    return {"status": "ok"}
+
 
 @system_router.get("/performance")
 async def system_performance() -> dict:

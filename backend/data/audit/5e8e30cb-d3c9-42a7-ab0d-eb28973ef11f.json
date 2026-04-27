@@ -1,0 +1,420 @@
+[
+  {
+    "ts": "2026-04-26T15:46:25.736375+00:00",
+    "event": "job_created",
+    "priority": "normal",
+    "queue_position": 1
+  },
+  {
+    "ts": "2026-04-26T15:46:25.768374+00:00",
+    "event": "celery_task_started",
+    "task_id": "5e8e30cb-d3c9-42a7-ab0d-eb28973ef11f",
+    "worker": "celery@Friday"
+  },
+  {
+    "ts": "2026-04-26T15:46:25.783836+00:00",
+    "event": "pipeline_start",
+    "layer_id": "GOES-East_ABI_Band2_Red_Visible_1km",
+    "data_source": "nasa_gibs",
+    "bbox": [
+      -100.0,
+      5.0,
+      -10.0,
+      35.0
+    ],
+    "resolution": 512,
+    "interpolation_model": "film"
+  },
+  {
+    "ts": "2026-04-26T15:46:25.798517+00:00",
+    "event": "timestamps_generated",
+    "count": 48
+  },
+  {
+    "ts": "2026-04-26T15:46:25.820302+00:00",
+    "event": "stage_update",
+    "progress": 0.08,
+    "message": "Fetching 48 frames from nasa_gibs"
+  },
+  {
+    "ts": "2026-04-26T15:47:23.900073+00:00",
+    "event": "ingestion_complete",
+    "requested": 48,
+    "fetched": 44
+  },
+  {
+    "ts": "2026-04-26T15:47:23.908569+00:00",
+    "event": "stage_update",
+    "progress": 0.22,
+    "message": "Fetched 44 valid source frames"
+  },
+  {
+    "ts": "2026-04-26T15:47:23.926134+00:00",
+    "event": "stage_update",
+    "progress": 0.28,
+    "message": "Preprocessing and normalising frame sequence"
+  },
+  {
+    "ts": "2026-04-26T15:47:24.786443+00:00",
+    "event": "preprocessing_complete",
+    "frames": 44,
+    "gaps": 43
+  },
+  {
+    "ts": "2026-04-26T15:47:24.795417+00:00",
+    "event": "stage_update",
+    "progress": 0.32,
+    "message": "Preprocessed 44 frames, 43 gaps"
+  },
+  {
+    "ts": "2026-04-26T15:47:24.809247+00:00",
+    "event": "interpolation_started",
+    "model": "film",
+    "engine_loaded": true
+  },
+  {
+    "ts": "2026-04-26T15:47:24.830279+00:00",
+    "event": "stage_update",
+    "progress": 0.35,
+    "message": "Interpolating pair 1 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:27.513644+00:00",
+    "event": "stage_update",
+    "progress": 0.358,
+    "message": "Interpolating pair 2 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:29.987201+00:00",
+    "event": "stage_update",
+    "progress": 0.366,
+    "message": "Interpolating pair 3 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:32.450182+00:00",
+    "event": "stage_update",
+    "progress": 0.374,
+    "message": "Interpolating pair 4 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:34.912327+00:00",
+    "event": "stage_update",
+    "progress": 0.383,
+    "message": "Interpolating pair 5 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:37.403759+00:00",
+    "event": "stage_update",
+    "progress": 0.391,
+    "message": "Interpolating pair 6 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:39.636313+00:00",
+    "event": "stage_update",
+    "progress": 0.399,
+    "message": "Interpolating pair 7 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:41.940961+00:00",
+    "event": "stage_update",
+    "progress": 0.407,
+    "message": "Interpolating pair 8 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:44.285441+00:00",
+    "event": "stage_update",
+    "progress": 0.415,
+    "message": "Interpolating pair 9 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:46.009479+00:00",
+    "event": "stage_update",
+    "progress": 0.423,
+    "message": "Interpolating pair 10 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:48.170213+00:00",
+    "event": "stage_update",
+    "progress": 0.431,
+    "message": "Interpolating pair 11 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:50.480380+00:00",
+    "event": "stage_update",
+    "progress": 0.44,
+    "message": "Interpolating pair 12 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:52.838599+00:00",
+    "event": "stage_update",
+    "progress": 0.448,
+    "message": "Interpolating pair 13 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:55.042060+00:00",
+    "event": "stage_update",
+    "progress": 0.456,
+    "message": "Interpolating pair 14 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:57.302906+00:00",
+    "event": "stage_update",
+    "progress": 0.464,
+    "message": "Interpolating pair 15 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:47:59.477407+00:00",
+    "event": "stage_update",
+    "progress": 0.472,
+    "message": "Interpolating pair 16 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:01.807157+00:00",
+    "event": "stage_update",
+    "progress": 0.48,
+    "message": "Interpolating pair 17 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:04.264731+00:00",
+    "event": "stage_update",
+    "progress": 0.488,
+    "message": "Interpolating pair 18 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:06.480341+00:00",
+    "event": "stage_update",
+    "progress": 0.497,
+    "message": "Interpolating pair 19 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:09.027853+00:00",
+    "event": "stage_update",
+    "progress": 0.505,
+    "message": "Interpolating pair 20 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:11.295998+00:00",
+    "event": "stage_update",
+    "progress": 0.513,
+    "message": "Interpolating pair 21 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:13.630365+00:00",
+    "event": "stage_update",
+    "progress": 0.521,
+    "message": "Interpolating pair 22 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:15.966229+00:00",
+    "event": "stage_update",
+    "progress": 0.529,
+    "message": "Interpolating pair 23 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:18.421665+00:00",
+    "event": "stage_update",
+    "progress": 0.537,
+    "message": "Interpolating pair 24 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:20.830132+00:00",
+    "event": "stage_update",
+    "progress": 0.545,
+    "message": "Interpolating pair 25 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:23.285972+00:00",
+    "event": "stage_update",
+    "progress": 0.553,
+    "message": "Interpolating pair 26 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:25.681204+00:00",
+    "event": "stage_update",
+    "progress": 0.562,
+    "message": "Interpolating pair 27 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:27.976961+00:00",
+    "event": "stage_update",
+    "progress": 0.57,
+    "message": "Interpolating pair 28 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:30.361898+00:00",
+    "event": "stage_update",
+    "progress": 0.578,
+    "message": "Interpolating pair 29 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:32.758672+00:00",
+    "event": "stage_update",
+    "progress": 0.586,
+    "message": "Interpolating pair 30 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:35.131126+00:00",
+    "event": "stage_update",
+    "progress": 0.594,
+    "message": "Interpolating pair 31 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:37.566956+00:00",
+    "event": "stage_update",
+    "progress": 0.602,
+    "message": "Interpolating pair 32 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:39.973661+00:00",
+    "event": "stage_update",
+    "progress": 0.61,
+    "message": "Interpolating pair 33 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:42.504466+00:00",
+    "event": "stage_update",
+    "progress": 0.619,
+    "message": "Interpolating pair 34 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:45.131858+00:00",
+    "event": "stage_update",
+    "progress": 0.627,
+    "message": "Interpolating pair 35 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:47.568011+00:00",
+    "event": "stage_update",
+    "progress": 0.635,
+    "message": "Interpolating pair 36 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:50.314650+00:00",
+    "event": "stage_update",
+    "progress": 0.643,
+    "message": "Interpolating pair 37 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:52.874498+00:00",
+    "event": "stage_update",
+    "progress": 0.651,
+    "message": "Interpolating pair 38 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:54.893607+00:00",
+    "event": "stage_update",
+    "progress": 0.659,
+    "message": "Interpolating pair 39 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:57.348325+00:00",
+    "event": "stage_update",
+    "progress": 0.667,
+    "message": "Interpolating pair 40 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:48:59.801921+00:00",
+    "event": "stage_update",
+    "progress": 0.676,
+    "message": "Interpolating pair 41 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:49:02.210182+00:00",
+    "event": "stage_update",
+    "progress": 0.684,
+    "message": "Interpolating pair 42 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:49:04.161923+00:00",
+    "event": "stage_update",
+    "progress": 0.692,
+    "message": "Interpolating pair 43 of 43"
+  },
+  {
+    "ts": "2026-04-26T15:49:06.759233+00:00",
+    "event": "interpolation_complete",
+    "total_frames": 213,
+    "interpolated": 169
+  },
+  {
+    "ts": "2026-04-26T15:49:06.866936+00:00",
+    "event": "stage_update",
+    "progress": 0.76,
+    "message": "Exporting frame PNGs"
+  },
+  {
+    "ts": "2026-04-26T15:49:10.743517+00:00",
+    "event": "stage_update",
+    "progress": 0.82,
+    "message": "Generating uncertainty maps"
+  },
+  {
+    "ts": "2026-04-26T15:49:47.539549+00:00",
+    "event": "confidence_maps_generated",
+    "count": 169
+  },
+  {
+    "ts": "2026-04-26T15:49:47.600877+00:00",
+    "event": "stage_update",
+    "progress": 0.87,
+    "message": "Computing change detection maps"
+  },
+  {
+    "ts": "2026-04-26T15:50:14.993939+00:00",
+    "event": "change_maps_generated",
+    "count": 212
+  },
+  {
+    "ts": "2026-04-26T15:50:15.050616+00:00",
+    "event": "stage_update",
+    "progress": 0.91,
+    "message": "Running anomaly detection"
+  },
+  {
+    "ts": "2026-04-26T15:50:19.998636+00:00",
+    "event": "anomaly_detection_complete",
+    "anomalies": 82,
+    "total": 213
+  },
+  {
+    "ts": "2026-04-26T15:50:20.053044+00:00",
+    "event": "stage_update",
+    "progress": 0.95,
+    "message": "Computing quality metrics"
+  },
+  {
+    "ts": "2026-04-26T15:50:39.260955+00:00",
+    "event": "metrics_computed",
+    "tcs": 0.2197,
+    "fsi": 0.4888,
+    "avg_psnr": 21.1,
+    "anomaly_count": 82
+  },
+  {
+    "ts": "2026-04-26T15:50:39.366336+00:00",
+    "event": "stage_update",
+    "progress": 0.93,
+    "message": "Tracking cloud trajectories"
+  },
+  {
+    "ts": "2026-04-26T15:51:55.019519+00:00",
+    "event": "trajectories_tracked",
+    "count": 6
+  },
+  {
+    "ts": "2026-04-26T15:51:55.087258+00:00",
+    "event": "stage_update",
+    "progress": 1.0,
+    "message": "Pipeline completed successfully"
+  },
+  {
+    "ts": "2026-04-26T15:51:55.351982+00:00",
+    "event": "job_completed",
+    "duration_sec": 329.503002
+  },
+  {
+    "ts": "2026-04-26T15:51:55.372594+00:00",
+    "event": "celery_task_completed",
+    "task_id": "5e8e30cb-d3c9-42a7-ab0d-eb28973ef11f"
+  }
+]

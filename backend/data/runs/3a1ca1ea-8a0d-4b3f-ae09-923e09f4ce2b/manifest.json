@@ -1,0 +1,23 @@
+{
+  "job_id": "3a1ca1ea-8a0d-4b3f-ae09-923e09f4ce2b",
+  "parameters": {
+    "job_id": "3a1ca1ea-8a0d-4b3f-ae09-923e09f4ce2b",
+    "session_id": null,
+    "session_name": "Untitled Session",
+    "layer_id": "Himawari_AHI_Band13_Clean_Infrared",
+    "data_source": "nasa_gibs",
+    "bbox": [
+      100.0,
+      -40.0,
+      160.0,
+      -10.0
+    ],
+    "time_start": "2026-04-26T07:40:00+00:00",
+    "time_end": "2026-04-26T09:40:00+00:00",
+    "resolution": 512,
+    "interpolation_model": "film",
+    "n_intermediate": 4,
+    "step_minutes": null,
+    "include_low_confidence": false
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "job_id": "5e8e30cb-d3c9-42a7-ab0d-eb28973ef11f",
+  "parameters": {
+    "job_id": "5e8e30cb-d3c9-42a7-ab0d-eb28973ef11f",
+    "session_id": null,
+    "session_name": "Untitled Session",
+    "layer_id": "GOES-East_ABI_Band2_Red_Visible_1km",
+    "data_source": "nasa_gibs",
+    "bbox": [
+      -100.0,
+      5.0,
+      -10.0,
+      35.0
+    ],
+    "time_start": "2026-04-25T07:50:00+00:00",
+    "time_end": "2026-04-26T09:50:00+00:00",
+    "resolution": 512,
+    "interpolation_model": "film",
+    "n_intermediate": 4,
+    "step_minutes": null,
+    "include_low_confidence": true
+  }
+}

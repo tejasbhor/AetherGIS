@@ -88,5 +88,6 @@ def run_pipeline_task(self, job_payload: dict) -> dict:
             raise self.retry(exc=exc, countdown=countdown)
 
         fail_job(job_id, str(exc))
-        self.update_state(state="FAILURE", meta={"error": str(exc)})
+        # Let Celery handle the final FAILURE state with the original exception object
+        # This prevents the 'ValueError: Exception information must include the exception type' error
         raise

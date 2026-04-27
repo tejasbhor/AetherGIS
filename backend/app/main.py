@@ -7,9 +7,12 @@ import redis as redis_sync
 import torch
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from backend.app.config import get_settings
+from backend.app.db import SessionLocal
 from backend.app.models.schemas import HealthResponse
+from backend.app.services.persistence import ensure_demo_session, init_database
 from backend.app.services.interpolation import FILMEngine, RIFEEngine, get_engine
 from backend.app.utils.logging import configure_logging, get_logger
 
@@ -22,6 +25,8 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     logger.info('AetherGIS API starting up', version='2.0.0')
     settings.ensure_dirs()
+    init_database()
+    ensure_demo_session()
 
     # Ensure production data directories exist
     for sub in ["runs", "audit", "checkpoints", "metrics"]:
@@ -84,6 +89,10 @@ from backend.app.api.routes import layers, pipeline  # noqa: E402
 # Existing routes (backward-compat)
 app.include_router(pipeline.router, prefix='/api/v1')
 app.include_router(layers.router, prefix='/api/v1')
+from backend.app.api.routes.sessions import router as sessions_router
+app.include_router(sessions_router, prefix='/api/v1')
+from backend.app.api.routes.auth import router as auth_router
+app.include_router(auth_router, prefix='/api/v1')
 
 # New production routes (MODULE 1 + 2 + 15)
 from backend.app.api.routes.jobs import router as jobs_router
@@ -106,12 +115,24 @@ app.include_router(stream_router, prefix='/api/v1')
 @app.get('/api/v1/health', response_model=HealthResponse, tags=['System'])
 async def health_check() -> HealthResponse:
     redis_ok = False
+    db_ok = False
     try:
         redis_client = redis_sync.from_url(settings.redis_url, socket_connect_timeout=2)
         redis_client.ping()
         redis_ok = True
     except Exception:
         pass
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception:
+        pass
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass
 
     gpu_ok = torch.cuda.is_available() or (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available())
     gpu_device_name = "Apple Metal (MPS)" if not torch.cuda.is_available() and hasattr(torch.backends, 'mps') and torch.backends.mps.is_available() else (torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)
@@ -119,8 +140,9 @@ async def health_check() -> HealthResponse:
     film_loaded = get_engine('film').is_loaded
 
     return HealthResponse(
-        status='healthy' if redis_ok else 'degraded',
+        status='healthy' if redis_ok and db_ok else 'degraded',
         redis_connected=redis_ok,
+        db_connected=db_ok,
         gpu_available=gpu_ok,
         gpu_device_name=gpu_device_name,
         rife_model_loaded=rife_loaded,

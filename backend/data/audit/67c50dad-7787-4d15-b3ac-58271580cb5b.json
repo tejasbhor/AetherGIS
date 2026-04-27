@@ -1,0 +1,161 @@
+[
+  {
+    "ts": "2026-04-20T20:57:33.924376+00:00",
+    "event": "job_created",
+    "priority": "normal",
+    "queue_position": 1
+  },
+  {
+    "ts": "2026-04-20T20:57:34.307587+00:00",
+    "event": "celery_task_started",
+    "task_id": "67c50dad-7787-4d15-b3ac-58271580cb5b",
+    "worker": "celery@Friday"
+  },
+  {
+    "ts": "2026-04-20T20:57:34.310332+00:00",
+    "event": "pipeline_start",
+    "layer_id": "INSAT3D_TIR1",
+    "data_source": "insat",
+    "bbox": [
+      70.0,
+      10.0,
+      90.0,
+      30.0
+    ],
+    "resolution": 512,
+    "interpolation_model": "rife"
+  },
+  {
+    "ts": "2026-04-20T20:57:34.317104+00:00",
+    "event": "timestamps_generated",
+    "count": 2
+  },
+  {
+    "ts": "2026-04-20T20:57:34.327820+00:00",
+    "event": "stage_update",
+    "progress": 0.08,
+    "message": "Fetching 2 frames from insat"
+  },
+  {
+    "ts": "2026-04-20T20:57:41.512433+00:00",
+    "event": "celery_task_failed",
+    "error": "MOSDAC WMS request failed after 3 attempts (layer=INSAT3D_TIR1, time=2026-04-20T20:00:00Z): Client error '404 Not Found' for url 'https://mosdac.gov.in/live/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=INSAT3D_TIR1&STYLES=&SRS=EPSG%3A4326&BBOX=70.0%2C10.0%2C90.0%2C30.0&WIDTH=512&HEIGHT=512&FORMAT=image%2Fpng&TRANSPARENT=TRUE&TIME=2026-04-20T20%3A00%3A00Z'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "attempt": 1
+  },
+  {
+    "ts": "2026-04-20T20:57:51.530447+00:00",
+    "event": "celery_task_started",
+    "task_id": "67c50dad-7787-4d15-b3ac-58271580cb5b",
+    "worker": "celery@Friday"
+  },
+  {
+    "ts": "2026-04-20T20:57:51.531473+00:00",
+    "event": "pipeline_start",
+    "layer_id": "INSAT3D_TIR1",
+    "data_source": "insat",
+    "bbox": [
+      70.0,
+      10.0,
+      90.0,
+      30.0
+    ],
+    "resolution": 512,
+    "interpolation_model": "rife"
+  },
+  {
+    "ts": "2026-04-20T20:57:51.539306+00:00",
+    "event": "timestamps_generated",
+    "count": 2
+  },
+  {
+    "ts": "2026-04-20T20:57:51.548514+00:00",
+    "event": "stage_update",
+    "progress": 0.08,
+    "message": "Fetching 2 frames from insat"
+  },
+  {
+    "ts": "2026-04-20T20:57:58.066402+00:00",
+    "event": "celery_task_failed",
+    "error": "MOSDAC WMS request failed after 3 attempts (layer=INSAT3D_TIR1, time=2026-04-20T20:00:00Z): Client error '404 Not Found' for url 'https://mosdac.gov.in/live/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=INSAT3D_TIR1&STYLES=&SRS=EPSG%3A4326&BBOX=70.0%2C10.0%2C90.0%2C30.0&WIDTH=512&HEIGHT=512&FORMAT=image%2Fpng&TRANSPARENT=TRUE&TIME=2026-04-20T20%3A00%3A00Z'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "attempt": 2
+  },
+  {
+    "ts": "2026-04-21T06:40:32.979955+00:00",
+    "event": "celery_task_started",
+    "task_id": "67c50dad-7787-4d15-b3ac-58271580cb5b",
+    "worker": "celery@Friday"
+  },
+  {
+    "ts": "2026-04-21T06:40:32.992303+00:00",
+    "event": "pipeline_start",
+    "layer_id": "INSAT3D_TIR1",
+    "data_source": "insat",
+    "bbox": [
+      70.0,
+      10.0,
+      90.0,
+      30.0
+    ],
+    "resolution": 512,
+    "interpolation_model": "rife"
+  },
+  {
+    "ts": "2026-04-21T06:40:32.999913+00:00",
+    "event": "timestamps_generated",
+    "count": 2
+  },
+  {
+    "ts": "2026-04-21T06:40:33.011023+00:00",
+    "event": "stage_update",
+    "progress": 0.08,
+    "message": "Fetching 2 frames from insat"
+  },
+  {
+    "ts": "2026-04-21T06:40:40.861988+00:00",
+    "event": "celery_task_failed",
+    "error": "MOSDAC WMS request failed after 3 attempts (layer=INSAT3D_TIR1, time=2026-04-20T20:00:00Z): Client error '404 Not Found' for url 'https://mosdac.gov.in/live/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=INSAT3D_TIR1&STYLES=&SRS=EPSG%3A4326&BBOX=70.0%2C10.0%2C90.0%2C30.0&WIDTH=512&HEIGHT=512&FORMAT=image%2Fpng&TRANSPARENT=TRUE&TIME=2026-04-20T20%3A00%3A00Z'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "attempt": 3
+  },
+  {
+    "ts": "2026-04-21T06:41:20.936563+00:00",
+    "event": "celery_task_started",
+    "task_id": "67c50dad-7787-4d15-b3ac-58271580cb5b",
+    "worker": "celery@Friday"
+  },
+  {
+    "ts": "2026-04-21T06:41:20.948051+00:00",
+    "event": "pipeline_start",
+    "layer_id": "INSAT3D_TIR1",
+    "data_source": "insat",
+    "bbox": [
+      70.0,
+      10.0,
+      90.0,
+      30.0
+    ],
+    "resolution": 512,
+    "interpolation_model": "rife"
+  },
+  {
+    "ts": "2026-04-21T06:41:20.955969+00:00",
+    "event": "timestamps_generated",
+    "count": 2
+  },
+  {
+    "ts": "2026-04-21T06:41:20.965102+00:00",
+    "event": "stage_update",
+    "progress": 0.08,
+    "message": "Fetching 2 frames from insat"
+  },
+  {
+    "ts": "2026-04-21T06:41:31.060887+00:00",
+    "event": "celery_task_failed",
+    "error": "MOSDAC WMS request failed after 3 attempts (layer=INSAT3D_TIR1, time=2026-04-20T20:00:00Z): Client error '404 Not Found' for url 'https://mosdac.gov.in/live/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=INSAT3D_TIR1&STYLES=&SRS=EPSG%3A4326&BBOX=70.0%2C10.0%2C90.0%2C30.0&WIDTH=512&HEIGHT=512&FORMAT=image%2Fpng&TRANSPARENT=TRUE&TIME=2026-04-20T20%3A00%3A00Z'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "attempt": 4
+  },
+  {
+    "ts": "2026-04-21T06:41:31.081101+00:00",
+    "event": "job_failed",
+    "error": "MOSDAC WMS request failed after 3 attempts (layer=INSAT3D_TIR1, time=2026-04-20T20:00:00Z): Client error '404 Not Found' for url 'https://mosdac.gov.in/live/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=INSAT3D_TIR1&STYLES=&SRS=EPSG%3A4326&BBOX=70.0%2C10.0%2C90.0%2C30.0&WIDTH=512&HEIGHT=512&FORMAT=image%2Fpng&TRANSPARENT=TRUE&TIME=2026-04-20T20%3A00%3A00Z'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404"
+  }
+]

@@ -364,16 +364,61 @@ class StaticFallbackProvider(SatelliteProvider):
         )
 
 
+# ── Local Disk Provider (Offline Mode) ────────────────────────────────────────
+
+class LocalDiskProvider(SatelliteProvider):
+    name = "local_disk"
+    priority = 1 # Checked first in development
+
+    async def fetch_frame(
+        self,
+        layer_id: str,
+        bbox: list[float],
+        timestamp: datetime,
+        resolution: int,
+        client: httpx.AsyncClient,
+    ) -> Optional[ProviderFrame]:
+        # Path pattern: data/offline/{layer_id}/YYYYMMDDTHHMMSS.png
+        # timestamp format from GIBS: 2026-04-21T16:00:00Z -> 20260421T160000
+        ts_slug = timestamp.strftime("%Y%m%dT%H%M%S")
+        offline_dir = settings.data_dir / "offline" / layer_id
+        
+        # Try both .png and .jpg
+        for ext in [".png", ".jpg", ".jpeg"]:
+            file_path = offline_dir / f"{ts_slug}{ext}"
+            if file_path.exists():
+                try:
+                    with open(file_path, "rb") as f:
+                        raw = f.read()
+                    img_arr = _decode_image(raw, resolution)
+                    if img_arr is not None:
+                        logger.info("Serving offline frame from disk", path=str(file_path))
+                        return ProviderFrame(
+                            image=img_arr,
+                            timestamp=timestamp,
+                            source=self.name,
+                            layer=layer_id,
+                            bbox=bbox,
+                            resolution=resolution,
+                            url_used=str(file_path),
+                        )
+                except Exception as exc:
+                    logger.warning("Failed to load local frame", path=str(file_path), error=str(exc))
+        
+        return None
+
+
 # ── Provider registry ─────────────────────────────────────────────────────────
 
 _PROVIDERS: list[SatelliteProvider] = sorted(
     [
+        LocalDiskProvider(),
         NASAGIBSProvider(),
         HimawariProvider(),
         INSATProvider(),
         StaticFallbackProvider(),
     ],
-    key=lambda p: p.priority,
+    key=lambda p: (p.priority if settings.aether_mode == 'development' else p.priority + 10),
 )
 
 

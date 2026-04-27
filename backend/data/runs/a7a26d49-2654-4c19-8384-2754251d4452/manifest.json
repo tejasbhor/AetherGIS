@@ -1,0 +1,23 @@
+{
+  "job_id": "a7a26d49-2654-4c19-8384-2754251d4452",
+  "parameters": {
+    "job_id": "a7a26d49-2654-4c19-8384-2754251d4452",
+    "session_id": null,
+    "session_name": "Untitled Session",
+    "layer_id": "MODIS_Aqua_CorrectedReflectance_TrueColor",
+    "data_source": "nasa_gibs",
+    "bbox": [
+      65.0,
+      5.0,
+      100.0,
+      38.0
+    ],
+    "time_start": "2026-04-23T18:30:00+00:00",
+    "time_end": "2026-04-25T18:30:00+00:00",
+    "resolution": 512,
+    "interpolation_model": "film",
+    "n_intermediate": 4,
+    "step_minutes": null,
+    "include_low_confidence": true
+  }
+}

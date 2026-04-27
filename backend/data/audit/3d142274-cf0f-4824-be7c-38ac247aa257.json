@@ -1,0 +1,168 @@
+[
+  {
+    "ts": "2026-04-25T20:43:46.986966+00:00",
+    "event": "job_created",
+    "priority": "normal",
+    "queue_position": 1
+  },
+  {
+    "ts": "2026-04-25T20:43:47.015811+00:00",
+    "event": "celery_task_started",
+    "task_id": "3d142274-cf0f-4824-be7c-38ac247aa257",
+    "worker": "celery@Friday"
+  },
+  {
+    "ts": "2026-04-25T20:43:47.025170+00:00",
+    "event": "pipeline_start",
+    "layer_id": "Himawari_AHI_Band3_Red_Visible_1km",
+    "data_source": "nasa_gibs",
+    "bbox": [
+      78.0,
+      4.0,
+      100.0,
+      24.0
+    ],
+    "resolution": 512,
+    "interpolation_model": "film"
+  },
+  {
+    "ts": "2026-04-25T20:43:47.032333+00:00",
+    "event": "timestamps_generated",
+    "count": 13
+  },
+  {
+    "ts": "2026-04-25T20:43:47.047378+00:00",
+    "event": "stage_update",
+    "progress": 0.08,
+    "message": "Fetching 13 frames from nasa_gibs"
+  },
+  {
+    "ts": "2026-04-25T20:44:01.849648+00:00",
+    "event": "ingestion_complete",
+    "requested": 13,
+    "fetched": 2
+  },
+  {
+    "ts": "2026-04-25T20:44:01.857583+00:00",
+    "event": "stage_update",
+    "progress": 0.22,
+    "message": "Fetched 2 valid source frames"
+  },
+  {
+    "ts": "2026-04-25T20:44:01.871623+00:00",
+    "event": "stage_update",
+    "progress": 0.28,
+    "message": "Preprocessing and normalising frame sequence"
+  },
+  {
+    "ts": "2026-04-25T20:44:01.902297+00:00",
+    "event": "preprocessing_complete",
+    "frames": 2,
+    "gaps": 1
+  },
+  {
+    "ts": "2026-04-25T20:44:01.916306+00:00",
+    "event": "stage_update",
+    "progress": 0.32,
+    "message": "Preprocessed 2 frames, 1 gaps"
+  },
+  {
+    "ts": "2026-04-25T20:44:01.922370+00:00",
+    "event": "interpolation_started",
+    "model": "film",
+    "engine_loaded": true
+  },
+  {
+    "ts": "2026-04-25T20:44:01.933949+00:00",
+    "event": "stage_update",
+    "progress": 0.35,
+    "message": "Interpolating pair 1 of 1"
+  },
+  {
+    "ts": "2026-04-25T20:44:03.740956+00:00",
+    "event": "interpolation_complete",
+    "total_frames": 2,
+    "interpolated": 0
+  },
+  {
+    "ts": "2026-04-25T20:44:03.757020+00:00",
+    "event": "stage_update",
+    "progress": 0.76,
+    "message": "Exporting frame PNGs"
+  },
+  {
+    "ts": "2026-04-25T20:44:03.779321+00:00",
+    "event": "stage_update",
+    "progress": 0.82,
+    "message": "Generating uncertainty maps"
+  },
+  {
+    "ts": "2026-04-25T20:44:03.785507+00:00",
+    "event": "confidence_maps_generated",
+    "count": 0
+  },
+  {
+    "ts": "2026-04-25T20:44:03.797445+00:00",
+    "event": "stage_update",
+    "progress": 0.87,
+    "message": "Computing change detection maps"
+  },
+  {
+    "ts": "2026-04-25T20:44:03.876958+00:00",
+    "event": "change_maps_generated",
+    "count": 1
+  },
+  {
+    "ts": "2026-04-25T20:44:03.893823+00:00",
+    "event": "stage_update",
+    "progress": 0.91,
+    "message": "Running anomaly detection"
+  },
+  {
+    "ts": "2026-04-25T20:44:03.906238+00:00",
+    "event": "anomaly_detection_complete",
+    "anomalies": 1,
+    "total": 2
+  },
+  {
+    "ts": "2026-04-25T20:44:03.919580+00:00",
+    "event": "stage_update",
+    "progress": 0.95,
+    "message": "Computing quality metrics"
+  },
+  {
+    "ts": "2026-04-25T20:44:03.928338+00:00",
+    "event": "metrics_computed",
+    "tcs": 1.0,
+    "fsi": 0.0639,
+    "avg_psnr": null,
+    "anomaly_count": 1
+  },
+  {
+    "ts": "2026-04-25T20:44:03.939785+00:00",
+    "event": "stage_update",
+    "progress": 0.93,
+    "message": "Tracking cloud trajectories"
+  },
+  {
+    "ts": "2026-04-25T20:44:04.143360+00:00",
+    "event": "trajectories_tracked",
+    "count": 6
+  },
+  {
+    "ts": "2026-04-25T20:44:04.152653+00:00",
+    "event": "stage_update",
+    "progress": 1.0,
+    "message": "Pipeline completed successfully"
+  },
+  {
+    "ts": "2026-04-25T20:44:04.195303+00:00",
+    "event": "job_completed",
+    "duration_sec": 17.17923
+  },
+  {
+    "ts": "2026-04-25T20:44:04.201631+00:00",
+    "event": "celery_task_completed",
+    "task_id": "3d142274-cf0f-4824-be7c-38ac247aa257"
+  }
+]

@@ -1,19 +1,41 @@
 /**
- * AetherGIS — Main App layout (QGIS Engineering Dashboard)
- * Production-ready: functional menu bar, session manager, keyboard shortcuts,
- * drift-resistant playback engine, custom-event cross-component wiring.
+ * AetherGIS — Modular Monolith Entry Point
+ * Routing handled via React Router to separate Brand and App modules.
  */
 import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import MapViewer from './components/MapViewer';
-import LayerControls from './components/LayerControls';
-import AnalysisPanel from './components/AnalysisPanel';
-import TimelineScrubber from './components/TimelineScrubber';
-import ServerStatus from './components/ServerStatus';
-import MenuBar from './components/MenuBar';
-import SessionManager from './components/SessionManager';
-import { useStore } from './store/useStore';
-import { useHealth, useJobStatus, useJobResults } from './api/client';
+
+// Shared
+import { useHealth, useJobStatus, useJobResults } from '@shared/api/client';
+
+// Brand Module
+import LandingPage from '@brand/LandingPage';
+import PrivacyPolicy from '@brand/PrivacyPolicy';
+import Documentation from '@brand/Documentation';
+import ProductPage from '@brand/ProductPage';
+import HowItWorksPage from '@brand/HowItWorksPage';
+import DataSourcesPage from '@brand/DataSourcesPage';
+import Terms from '@brand/Terms';
+import Disclaimer from '@brand/Disclaimer';
+import SecurityPage from '@brand/SecurityPage';
+import AboutPage from '@brand/AboutPage';
+import ContactPage from '@brand/ContactPage';
+import AccessPage from '@brand/AccessPage';
+import StatusPage from '@brand/StatusPage';
+// Docs sub-pages are now handled within the single Documentation component via URL hash
+import AuthGate from '@shared/components/AuthGate';
+
+// App Module Components
+import MapViewer from '@app/components/MapViewer';
+import LayerControls from '@app/components/LayerControls';
+import AnalysisPanel from '@app/components/AnalysisPanel';
+import TimelineScrubber from '@app/components/TimelineScrubber';
+import ServerStatus from '@app/components/ServerStatus';
+import MenuBar from '@app/components/MenuBar';
+import SessionManager from '@app/components/SessionManager';
+import SessionGate from '@app/components/SessionGate';
+import { useStore } from '@app/store/useStore';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,12 +43,13 @@ const queryClient = new QueryClient({
   },
 });
 
-// ─── Job status polling ───────────────────────────────────────────────────────
+// ─── App Engine Components ──────────────────────────────────────────────────
+
 function JobPoller() {
   const { jobId, jobStatus, setJobStatus, setPipelineResult, setJobProgress, setJobMessage, setApiError } = useStore();
   const isActive = jobStatus === 'queued' || jobStatus === 'running';
-  const { data: statusData, error: statusError } = useJobStatus(jobId, isActive);
-  const { data: resultsData, error: resultsError } = useJobResults(jobId, statusData?.status === 'COMPLETED');
+  const { data: statusData } = useJobStatus(jobId, isActive);
+  const { data: resultsData } = useJobResults(jobId, statusData?.status === 'COMPLETED');
 
   useEffect(() => {
     if (!statusData) return;
@@ -38,302 +61,200 @@ function JobPoller() {
   }, [statusData]);
 
   useEffect(() => {
-    if (statusError) setApiError('Lost connection to job status endpoint.');
-    if (resultsError) setApiError('Failed to retrieve pipeline results.');
-  }, [statusError, resultsError]);
-
-  useEffect(() => {
     if (resultsData) { setPipelineResult(resultsData); setJobMessage('Pipeline complete'); setApiError(null); }
   }, [resultsData]);
 
   return null;
 }
 
-// ─── Drift-resistant PlaybackEngine ──────────────────────────────────────────
-/**
- * The ONLY setInterval in the app for playback.
- * Uses performance.now() to accumulate elapsed time, so slow frames don't
- * cause double-advances, and fast frames stay accurate at any speed.
- */
 function PlaybackEngine() {
-  const isPlaying   = useStore((s) => s.isPlaying);
+  const isPlaying = useStore((s) => s.isPlaying);
   const playbackSpeed = useStore((s) => s.playbackSpeed);
-  const hasFrames   = useStore((s) => (s.pipelineResult?.frames.length ?? 0) > 0);
+  const hasFrames = useStore((s) => (s.pipelineResult?.frames.length ?? 0) > 0);
 
   useEffect(() => {
     if (!isPlaying || !hasFrames) return;
-
-    const msPerFrame = 1000 / (10 * playbackSpeed);   // 10fps base
+    const msPerFrame = 1000 / (10 * playbackSpeed);
     let lastTick = performance.now();
-
     const id = setInterval(() => {
       const now = performance.now();
       const elapsed = now - lastTick;
-      // Advance one frame per msPerFrame of elapsed time (handles tab throttling)
       if (elapsed >= msPerFrame * 0.85) {
         useStore.getState().playbackTick();
         lastTick = now;
       }
-    }, Math.max(16, msPerFrame * 0.5));   // poll at 2× target rate, min 16ms (60fps)
-
+    }, Math.max(16, msPerFrame * 0.5));
     return () => clearInterval(id);
   }, [isPlaying, playbackSpeed, hasFrames]);
 
   return null;
 }
 
-// ─── Global keyboard shortcuts ────────────────────────────────────────────────
 function KeyboardHandler() {
-  const store = useStore;
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Skip if input/textarea focused
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
-      const s = store.getState();
-
+      const s = useStore.getState();
       switch (e.key) {
-        case ' ':
-          e.preventDefault();
-          s.setIsPlaying(!s.isPlaying);
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          s.setIsPlaying(false);
-          { const p = s.getNextFrameIndex(s.currentFrameIndex, -1); if (p !== null) s.setCurrentFrameIndex(p); }
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          s.setIsPlaying(false);
-          { const n = s.getNextFrameIndex(s.currentFrameIndex, 1); if (n !== null) s.setCurrentFrameIndex(n); }
-          break;
-        case 'Home':
-          e.preventDefault();
-          s.setIsPlaying(false);
-          s.seekToStart();
-          break;
-        case 'End':
-          e.preventDefault();
-          s.setIsPlaying(false);
-          s.seekToEnd();
-          break;
+        case ' ': e.preventDefault(); s.setIsPlaying(!s.isPlaying); break;
+        case 'ArrowLeft': e.preventDefault(); s.setIsPlaying(false); { const p = s.getNextFrameIndex(s.currentFrameIndex, -1); if (p !== null) s.setCurrentFrameIndex(p); } break;
+        case 'ArrowRight': e.preventDefault(); s.setIsPlaying(false); { const n = s.getNextFrameIndex(s.currentFrameIndex, 1); if (n !== null) s.setCurrentFrameIndex(n); } break;
+        case 'Home': e.preventDefault(); s.setIsPlaying(false); s.seekToStart(); break;
+        case 'End': e.preventDefault(); s.setIsPlaying(false); s.seekToEnd(); break;
         case '1': s.setPlaybackSpeed(0.5); break;
         case '2': s.setPlaybackSpeed(1); break;
         case '3': s.setPlaybackSpeed(2); break;
         case '4': s.setPlaybackSpeed(4); break;
-        case 'a': case 'A': s.setPlaybackMode('all'); break;
-        case 'o': case 'O': s.setPlaybackMode('original'); break;
-        case 'i': case 'I': s.setPlaybackMode('interpolated'); break;
         case 'm': case 'M': s.setShowMetadataOverlay(!s.showMetadataOverlay); break;
         case 'Escape': s.setIsPlaying(false); break;
-        default: break;
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
-
   return null;
 }
 
-// ─── Toolbar (upgraded with Session Manager) ──────────────────────────────────
 function Toolbar() {
-  const { selectedLayer, jobHistory, bbox, setBbox } = useStore();
+  const { bbox, setBbox, dataSource } = useStore();
   const [showSessions, setShowSessions] = useState(false);
 
-  // Custom events from MenuBar for cross-component wiring
   useEffect(() => {
     const clearAoi = () => setBbox(null);
-    window.addEventListener('aethergis:clearAoi', clearAoi);
-    return () => window.removeEventListener('aethergis:clearAoi', clearAoi);
-  }, [setBbox]);
-
-  // File → New Session from MenuBar opens the session manager panel
-  useEffect(() => {
     const openSM = () => setShowSessions(true);
+    window.addEventListener('aethergis:clearAoi', clearAoi);
     window.addEventListener('aethergis:openSessionManager', openSM);
-    return () => window.removeEventListener('aethergis:openSessionManager', openSM);
-  }, []);
-
-  const pendingCount = jobHistory.filter(j => j.frames.length > 0).length;
+    return () => {
+      window.removeEventListener('aethergis:clearAoi', clearAoi);
+      window.removeEventListener('aethergis:openSessionManager', openSM);
+    };
+  }, [setBbox]);
 
   return (
     <>
       <div className="toolbar">
         <div className="tb-group">
-          {/* Session Manager trigger */}
-          <button
-            className="tb-btn tb-session-btn"
-            title="Session Manager"
-            onClick={() => setShowSessions(true)}
-          >
+          <button className="tb-btn tb-session-btn" onClick={() => setShowSessions(true)}>
             <span className="tb-btn-icon">⊞</span>
             <span className="tb-btn-text">Sessions</span>
-            {pendingCount > 0 && (
-              <span className="tb-badge">{pendingCount}</span>
-            )}
           </button>
         </div>
-
         <div className="tb-sep" />
-
         <div className="tb-group">
-          <button className="tb-btn active" title="Draw AOI bounding box (B)">⬚</button>
-          <button className="tb-btn" title="Pan (P)">✥</button>
-          <button
-            className="tb-btn"
-            title="Zoom to AOI"
-            disabled={!bbox}
-            onClick={() => window.dispatchEvent(new CustomEvent('aethergis:zoomToAoi'))}
-          >⊙</button>
-          <button
-            className="tb-btn"
-            title="Clear AOI"
-            disabled={!bbox}
-            onClick={() => setBbox(null)}
-          >⊗</button>
+          <button className="tb-btn active" title="Draw AOI">⬚</button>
+          <button className="tb-btn" title="Pan">✥</button>
+          <button className="tb-btn" title="Zoom to AOI" disabled={!bbox} onClick={() => window.dispatchEvent(new CustomEvent('aethergis:zoomToAoi'))}>⊙</button>
+          <button className="tb-btn" title="Clear AOI" disabled={!bbox} onClick={() => setBbox(null)}>⊗</button>
         </div>
-
         <div className="tb-sep" />
-
         <div className="tb-group">
           <div className="tb-label">SOURCE:</div>
           <div className="tb-source-badge">
             <span className="tb-src-dot ok" />
-            NASA GIBS
-          </div>
-          <div className="tb-source-badge" style={{ opacity: 0.45 }} title="Phase 2 — Coming soon">
-            <span className="tb-src-dot warn" />
-            MOSDAC P2
-          </div>
-          <div className="tb-source-badge" style={{ opacity: 0.3 }} title="Phase 3 — Planned">
-            <span className="tb-src-dot idle" />
-            EUMETSAT P3
+            {dataSource === 'nasa_gibs' ? 'NASA GIBS' : dataSource === 'insat' ? 'MOSDAC' : 'BHUVAN'}
           </div>
         </div>
-
         <div className="tb-sep" />
-
         <div className="tb-info">CRS: <strong>EPSG:4326</strong></div>
-        {bbox && (
-          <div className="tb-info" style={{ fontFamily: 'var(--mono)', fontSize: 10 }}>
-            AOI: <strong>{bbox[0].toFixed(1)}°,{bbox[1].toFixed(1)}° – {bbox[2].toFixed(1)}°,{bbox[3].toFixed(1)}°</strong>
-          </div>
-        )}
-        <div className="tb-info">
-          Layer: <strong>{selectedLayer ? selectedLayer.split('_').slice(0, 2).join(' ') : 'No selection'}</strong>
-        </div>
       </div>
-
       {showSessions && <SessionManager onClose={() => setShowSessions(false)} />}
     </>
   );
 }
 
-// ─── Status bar ────────────────────────────────────────────────────────────────
 function StatusBar() {
   const { pipelineResult, jobStatus, bbox, apiError } = useStore();
   const { data: health } = useHealth();
-
   const statusCls = jobStatus === 'completed' ? 'sb-ready' : jobStatus === 'failed' ? '' : jobStatus !== 'idle' ? 'sb-warn' : 'sb-ready';
-  const statusLabel =
-    jobStatus === 'completed' ? '● Pipeline complete' :
-    jobStatus === 'failed'    ? '✕ Pipeline failed' :
-    jobStatus !== 'idle'      ? '● Running…' :
-                                '● Ready';
+  const statusLabel = jobStatus === 'completed' ? '● Pipeline complete' : jobStatus === 'failed' ? '✕ Pipeline failed' : jobStatus !== 'idle' ? '● Running…' : '● Ready';
 
   return (
     <div className="statusbar">
-      <div className="sb-seg">AetherGIS 1.0.0</div>
-      <div className="sb-seg">EPSG: <strong>4326</strong></div>
-      {bbox ? (
-        <div className="sb-seg" style={{ fontFamily: 'var(--mono)' }}>
-          AOI: <strong>{bbox[0].toFixed(2)}°E – {bbox[2].toFixed(2)}°E · {bbox[1].toFixed(2)}°N – {bbox[3].toFixed(2)}°N</strong>
-        </div>
-      ) : (
-        <div className="sb-seg" style={{ color: 'var(--t4)', fontStyle: 'italic' }}>No AOI selected</div>
-      )}
-      {pipelineResult?.frames.length ? (
-        <div className="sb-seg">
-          Frames: <strong>{pipelineResult.frames.length}</strong>
-          {' · '}PSNR: <strong>{pipelineResult.metrics?.avg_psnr?.toFixed(1) ?? '—'} dB</strong>
-          {' · '}SSIM: <strong>{pipelineResult.metrics?.avg_ssim?.toFixed(3) ?? '—'}</strong>
-        </div>
-      ) : null}
-      {apiError && (
-        <div className="sb-seg" style={{ color: 'var(--red)' }}>
-          ⚠ {apiError.length > 60 ? apiError.slice(0, 60) + '…' : apiError}
-        </div>
-      )}
+      <div className="sb-seg">AetherGIS 2.0.0</div>
+      {bbox && <div className="sb-seg">AOI Active</div>}
+      {pipelineResult?.frames.length ? <div className="sb-seg">Frames: {pipelineResult.frames.length}</div> : null}
+      {apiError && <div className="sb-seg text-red">⚠ Error</div>}
       <div className={`sb-seg ${statusCls}`}>{statusLabel}</div>
-      <div className="sb-seg right">
-        GPU: <strong>{health?.gpu_available ? 'RTX 4060' : 'CPU-only'}</strong>
-        {health?.gpu_available ? ' · VRAM: 8 GB' : ''}
-      </div>
+      <div className="sb-seg right">GPU: {health?.gpu_available ? 'Enabled' : 'Disabled'}</div>
     </div>
   );
 }
 
-// ─── Main inner app ───────────────────────────────────────────────────────────
-function AppInner() {
+// ─── Modules ────────────────────────────────────────────────────────────────
+
+/**
+ * App Module - The GeoAI Engine Workspace
+ */
+function AppModule() {
+  const refreshHistory = useStore((s) => s.refreshHistory);
+  useEffect(() => {
+    refreshHistory().catch((err) => console.error('History sync failed:', err));
+  }, [refreshHistory]);
+
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', overflow: 'hidden' }}>
-      <JobPoller />
-      <PlaybackEngine />
-      <KeyboardHandler />
-      <MenuBar />
-      <Toolbar />
-      {/* Server-down / partial-degradation banner */}
-      <ServerStatus />
-
-      {/* 3-column workspace */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '262px 1fr 288px', overflow: 'hidden', minHeight: 0 }}>
-
-        {/* LEFT DOCK */}
-        <div className="dock dock-left">
-          <div className="dock-title">
-            <span className="dock-title-text">Layers / Parameters</span>
-            <div className="dock-title-actions">
-              <div className="dock-mini-btn" title="Add layer">+</div>
-              <div className="dock-mini-btn" title="Remove">−</div>
-            </div>
+    <SessionGate>
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', overflow: 'hidden' }}>
+        <JobPoller />
+        <PlaybackEngine />
+        <KeyboardHandler />
+        <MenuBar />
+        <Toolbar />
+        <ServerStatus />
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '262px minmax(0, 1fr) 288px', overflow: 'hidden' }}>
+          <div className="dock dock-left"><LayerControls /></div>
+          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}><MapViewer /></div>
+            <TimelineScrubber />
           </div>
-          <div className="dock-scroll">
-            <LayerControls />
-          </div>
+          <div className="dock dock-right"><AnalysisPanel /></div>
         </div>
-
-        {/* CENTER COLUMN */}
-        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--b1)' }}>
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: 'var(--map-bg)', minHeight: 0 }}>
-            <MapViewer />
-          </div>
-          <TimelineScrubber />
-        </div>
-
-        {/* RIGHT DOCK */}
-        <div className="dock dock-right" style={{ minHeight: 0 }}>
-          <div className="dock-title">
-            <span className="dock-title-text">Analysis</span>
-          </div>
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <AnalysisPanel />
-          </div>
-        </div>
+        <StatusBar />
       </div>
-
-      <StatusBar />
-    </div>
+    </SessionGate>
   );
 }
 
-// Root with providers
+/**
+ * Main Application Shell
+ */
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppInner />
+      <BrowserRouter>
+        <Routes>
+          {/* Brand Module Routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/product" element={<ProductPage />} />
+          <Route path="/features" element={<Navigate to="/product" replace />} />
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
+          <Route path="/data-sources" element={<DataSourcesPage />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/docs" element={<Documentation />} />
+          <Route path="/docs/getting-started" element={<Navigate to="/docs#quickstart"    replace />} />
+          <Route path="/docs/architecture"     element={<Navigate to="/docs#architecture"   replace />} />
+          <Route path="/docs/api"              element={<Navigate to="/docs#api-run"        replace />} />
+          <Route path="/docs/ai-system"        element={<Navigate to="/docs#ai-system"      replace />} />
+          <Route path="/docs/user-guide"       element={<Navigate to="/docs#user-guide"     replace />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/disclaimer" element={<Disclaimer />} />
+          <Route path="/security" element={<SecurityPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/access" element={<AccessPage />} />
+          <Route path="/status" element={<StatusPage />} />
+
+          {/* App Module Routes */}
+          <Route path="/dashboard" element={
+            <AuthGate>
+              <AppModule />
+            </AuthGate>
+          } />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 }

@@ -1,0 +1,174 @@
+[
+  {
+    "ts": "2026-04-25T20:40:16.581119+00:00",
+    "event": "job_created",
+    "priority": "normal",
+    "queue_position": 1
+  },
+  {
+    "ts": "2026-04-25T20:40:16.609053+00:00",
+    "event": "celery_task_started",
+    "task_id": "e71fe7b3-230d-4641-a64d-ef3fb51132a5",
+    "worker": "celery@Friday"
+  },
+  {
+    "ts": "2026-04-25T20:40:16.618266+00:00",
+    "event": "pipeline_start",
+    "layer_id": "MODIS_Terra_CorrectedReflectance_TrueColor",
+    "data_source": "nasa_gibs",
+    "bbox": [
+      65.0,
+      5.0,
+      100.0,
+      38.0
+    ],
+    "resolution": 512,
+    "interpolation_model": "film"
+  },
+  {
+    "ts": "2026-04-25T20:40:16.626046+00:00",
+    "event": "timestamps_generated",
+    "count": 3
+  },
+  {
+    "ts": "2026-04-25T20:40:16.641610+00:00",
+    "event": "stage_update",
+    "progress": 0.08,
+    "message": "Fetching 3 frames from nasa_gibs"
+  },
+  {
+    "ts": "2026-04-25T20:40:21.060006+00:00",
+    "event": "ingestion_complete",
+    "requested": 3,
+    "fetched": 3
+  },
+  {
+    "ts": "2026-04-25T20:40:21.067961+00:00",
+    "event": "stage_update",
+    "progress": 0.22,
+    "message": "Fetched 3 valid source frames"
+  },
+  {
+    "ts": "2026-04-25T20:40:21.082465+00:00",
+    "event": "stage_update",
+    "progress": 0.28,
+    "message": "Preprocessing and normalising frame sequence"
+  },
+  {
+    "ts": "2026-04-25T20:40:21.122397+00:00",
+    "event": "preprocessing_complete",
+    "frames": 3,
+    "gaps": 2
+  },
+  {
+    "ts": "2026-04-25T20:40:21.136966+00:00",
+    "event": "stage_update",
+    "progress": 0.32,
+    "message": "Preprocessed 3 frames, 2 gaps"
+  },
+  {
+    "ts": "2026-04-25T20:40:21.142417+00:00",
+    "event": "interpolation_started",
+    "model": "film",
+    "engine_loaded": true
+  },
+  {
+    "ts": "2026-04-25T20:40:21.155784+00:00",
+    "event": "stage_update",
+    "progress": 0.35,
+    "message": "Interpolating pair 1 of 2"
+  },
+  {
+    "ts": "2026-04-25T20:40:24.536672+00:00",
+    "event": "stage_update",
+    "progress": 0.525,
+    "message": "Interpolating pair 2 of 2"
+  },
+  {
+    "ts": "2026-04-25T20:40:25.804516+00:00",
+    "event": "interpolation_complete",
+    "total_frames": 3,
+    "interpolated": 0
+  },
+  {
+    "ts": "2026-04-25T20:40:25.818436+00:00",
+    "event": "stage_update",
+    "progress": 0.76,
+    "message": "Exporting frame PNGs"
+  },
+  {
+    "ts": "2026-04-25T20:40:25.867102+00:00",
+    "event": "stage_update",
+    "progress": 0.82,
+    "message": "Generating uncertainty maps"
+  },
+  {
+    "ts": "2026-04-25T20:40:25.873218+00:00",
+    "event": "confidence_maps_generated",
+    "count": 0
+  },
+  {
+    "ts": "2026-04-25T20:40:25.884036+00:00",
+    "event": "stage_update",
+    "progress": 0.87,
+    "message": "Computing change detection maps"
+  },
+  {
+    "ts": "2026-04-25T20:40:26.046451+00:00",
+    "event": "change_maps_generated",
+    "count": 2
+  },
+  {
+    "ts": "2026-04-25T20:40:26.062200+00:00",
+    "event": "stage_update",
+    "progress": 0.91,
+    "message": "Running anomaly detection"
+  },
+  {
+    "ts": "2026-04-25T20:40:26.107129+00:00",
+    "event": "anomaly_detection_complete",
+    "anomalies": 1,
+    "total": 3
+  },
+  {
+    "ts": "2026-04-25T20:40:26.124380+00:00",
+    "event": "stage_update",
+    "progress": 0.95,
+    "message": "Computing quality metrics"
+  },
+  {
+    "ts": "2026-04-25T20:40:26.241534+00:00",
+    "event": "metrics_computed",
+    "tcs": 0.9957,
+    "fsi": 0.9363,
+    "avg_psnr": null,
+    "anomaly_count": 1
+  },
+  {
+    "ts": "2026-04-25T20:40:26.253132+00:00",
+    "event": "stage_update",
+    "progress": 0.93,
+    "message": "Tracking cloud trajectories"
+  },
+  {
+    "ts": "2026-04-25T20:40:26.589656+00:00",
+    "event": "trajectories_tracked",
+    "count": 6
+  },
+  {
+    "ts": "2026-04-25T20:40:26.614589+00:00",
+    "event": "stage_update",
+    "progress": 1.0,
+    "message": "Pipeline completed successfully"
+  },
+  {
+    "ts": "2026-04-25T20:40:26.643490+00:00",
+    "event": "job_completed",
+    "duration_sec": 10.034473
+  },
+  {
+    "ts": "2026-04-25T20:40:26.650246+00:00",
+    "event": "celery_task_completed",
+    "task_id": "e71fe7b3-230d-4641-a64d-ef3fb51132a5"
+  }
+]
