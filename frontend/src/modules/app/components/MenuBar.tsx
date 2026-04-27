@@ -5,8 +5,16 @@
  */
 import { useRef, useState } from 'react';
 import { useStore } from '@app/store/useStore';
-import { useHealth, triggerVideoExport } from '@shared/api/client';
+import {
+  getLogoutUrl,
+  releaseSessionLock,
+  triggerVideoExport,
+  useAuth,
+  useHealth,
+  useSystemConfig,
+} from '@shared/api/client';
 import ConfirmDialog from './ConfirmDialog';
+import { useDashboardTheme } from '@app/theme/DashboardThemeProvider';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 interface MenuItem {
@@ -147,9 +155,12 @@ export default function MenuBar() {
     jobStatus, jobProgress, jobId, pipelineResult,
     setShowMetadataOverlay, showMetadataOverlay,
     setShowLowConfidence, showLowConfidence, setIsPlaying, bbox,
-    setActivePanel, dataSource, setDataSource
+    setActivePanel, dataSource, setDataSource, sessionId,
   } = useStore();
   const { data: health, isError: healthError } = useHealth();
+  const { data: auth } = useAuth();
+  const { data: config } = useSystemConfig();
+  const { theme, isDark, toggleTheme } = useDashboardTheme();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [pendingDataSource, setPendingDataSource] = useState<'nasa_gibs' | 'isro_bhuvan' | 'insat' | null>(null);
@@ -158,6 +169,9 @@ export default function MenuBar() {
   const filmLoaded = health?.film_model_loaded ?? health?.rife_model_loaded ?? false;
   const gpuOk = health?.gpu_available ?? false;
   const apiOnline = !healthError && !!health;
+  const gpuLabel = health?.gpu_device_name?.replace('NVIDIA GeForce ', '') || (gpuOk ? 'Accelerated' : 'CPU-only');
+  const userLabel = auth?.user || (config?.features.auth ? 'Secure user' : 'Local dev');
+  const logoutLabel = config?.features.auth || config?.is_dev_preview ? 'Logout' : 'Leave Dashboard';
 
   const handleExport = async (type: 'original' | 'interpolated') => {
     if (!jobId) return;
@@ -197,6 +211,16 @@ export default function MenuBar() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await releaseSessionLock(sessionId);
+    } catch (error) {
+      console.warn('Session release failed during logout', error);
+    } finally {
+      window.location.assign(getLogoutUrl('/'));
+    }
+  };
+
   const fileItems: MenuItem[] = [
     {
       label: 'New Session',
@@ -230,6 +254,11 @@ export default function MenuBar() {
       label: 'Close App',
       onClick: () => window.close(),
     },
+    { label: 'divider', divider: true },
+    {
+      label: logoutLabel,
+      onClick: handleLogout,
+    },
   ];
 
   const viewItems: MenuItem[] = [
@@ -241,6 +270,18 @@ export default function MenuBar() {
     {
       label: `${showLowConfidence ? '✓' : '  '} Show Low-Confidence Frames`,
       onClick: () => setShowLowConfidence(!showLowConfidence),
+    },
+    {
+      label: `${theme === 'dark' ? '✓' : '  '} Dark Mode`,
+      onClick: () => {
+        if (!isDark) toggleTheme();
+      },
+    },
+    {
+      label: `${theme === 'light' ? '✓' : '  '} Light Mode`,
+      onClick: () => {
+        if (isDark) toggleTheme();
+      },
     },
     { label: 'divider', divider: true },
     {
@@ -336,7 +377,7 @@ export default function MenuBar() {
       <div className="menubar">
         <div className="app-name">
           Aether<span className="blue">GIS</span>{' '}
-          <span style={{ fontWeight: 400, color: 'var(--t3)', fontSize: 11 }}>1.0.0</span>
+          <span style={{ fontWeight: 500, color: 'var(--blue)', fontSize: 11 }}>2.0.0</span>
         </div>
 
         <Menu label="File" items={fileItems} />
@@ -354,6 +395,10 @@ export default function MenuBar() {
         <Menu label="Help" items={helpItems} />
 
         <div className="menubar-right">
+          <div className="user-pill" title={userLabel}>
+            <span className="user-pill-dot" aria-hidden="true" />
+            <span className="truncate">{userLabel}</span>
+          </div>
           <div className="status-pill">
             <div className={`s-dot ${apiOnline ? (health?.redis_connected ? 'ok' : 'warn') : 'err'}`} />
             {dataSource === 'nasa_gibs' ? 'NASA GIBS' : dataSource === 'insat' ? 'MOSDAC' : 'BHUVAN'} {!apiOnline && <span style={{ color: 'var(--red)', fontWeight: 600 }}>(offline)</span>}
@@ -364,7 +409,7 @@ export default function MenuBar() {
           </div>
           <div className="status-pill">
             <div className={`s-dot ${gpuOk ? 'ok' : 'idle'}`} />
-            GPU {gpuOk ? '· RTX 4060' : '· CPU-only'}
+            GPU · {gpuLabel}
           </div>
           {jobStatus === 'running' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -380,6 +425,12 @@ export default function MenuBar() {
           }}>
             {statusLabel[jobStatus]}
           </div>
+          <button className="chrome-btn" onClick={toggleTheme} aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}>
+            {isDark ? 'Light' : 'Dark'}
+          </button>
+          <button className="chrome-btn chrome-btn-danger" onClick={handleLogout}>
+            {logoutLabel}
+          </button>
         </div>
       </div>
 

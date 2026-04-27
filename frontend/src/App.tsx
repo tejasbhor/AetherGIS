@@ -35,6 +35,7 @@ import ServerStatus from '@app/components/ServerStatus';
 import MenuBar from '@app/components/MenuBar';
 import SessionManager from '@app/components/SessionManager';
 import SessionGate from '@app/components/SessionGate';
+import { DashboardThemeProvider } from '@app/theme/DashboardThemeProvider';
 import { useStore } from '@app/store/useStore';
 
 const queryClient = new QueryClient({
@@ -168,6 +169,7 @@ function StatusBar() {
   const { data: health } = useHealth();
   const statusCls = jobStatus === 'completed' ? 'sb-ready' : jobStatus === 'failed' ? '' : jobStatus !== 'idle' ? 'sb-warn' : 'sb-ready';
   const statusLabel = jobStatus === 'completed' ? '● Pipeline complete' : jobStatus === 'failed' ? '✕ Pipeline failed' : jobStatus !== 'idle' ? '● Running…' : '● Ready';
+  const gpuLabel = health?.gpu_device_name?.replace('NVIDIA GeForce ', '') || (health?.gpu_available ? 'Accelerated' : 'Disabled');
 
   return (
     <div className="statusbar">
@@ -176,7 +178,7 @@ function StatusBar() {
       {pipelineResult?.frames.length ? <div className="sb-seg">Frames: {pipelineResult.frames.length}</div> : null}
       {apiError && <div className="sb-seg text-red">⚠ Error</div>}
       <div className={`sb-seg ${statusCls}`}>{statusLabel}</div>
-      <div className="sb-seg right">GPU: {health?.gpu_available ? 'Enabled' : 'Disabled'}</div>
+      <div className="sb-seg right">GPU: {gpuLabel}</div>
     </div>
   );
 }
@@ -215,6 +217,16 @@ function AppModule() {
   );
 }
 
+function DashboardRoute() {
+  return (
+    <DashboardThemeProvider>
+      <AuthGate>
+        <AppModule />
+      </AuthGate>
+    </DashboardThemeProvider>
+  );
+}
+
 /**
  * Main Application Shell
  */
@@ -245,11 +257,7 @@ export function App() {
           <Route path="/status" element={<StatusPage />} />
 
           {/* App Module Routes */}
-          <Route path="/dashboard" element={
-            <AuthGate>
-              <AppModule />
-            </AuthGate>
-          } />
+          <Route path="/dashboard" element={<DashboardRoute />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

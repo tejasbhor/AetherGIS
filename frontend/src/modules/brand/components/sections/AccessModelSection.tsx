@@ -8,7 +8,6 @@ import {
   Lock, 
   CheckCircle,
   Database,
-  Cpu,
   LayoutList,
   Globe
 } from "lucide-react";

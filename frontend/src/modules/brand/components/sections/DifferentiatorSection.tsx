@@ -21,15 +21,6 @@ const DifferentiatorSection: React.FC = () => {
     },
   };
 
-  const drawPath = {
-    hidden: { pathLength: 0, opacity: 0 },
-    visible: {
-      pathLength: 1,
-      opacity: 1,
-      transition: { duration: 1, ease: "easeInOut" }
-    }
-  };
-
   return (
     <section className="brand-section differentiator-section">
       <div className="differentiator-container">

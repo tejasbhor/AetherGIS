@@ -73,6 +73,21 @@ class SessionLockService:
             if active_user == session_id:
                 self._refresh_heartbeat(session_id)
 
+    def release(self, session_id: str) -> bool:
+        """Release an active lock or remove a queued user explicitly."""
+        if not self.available or settings.aether_mode != 'production' or not session_id:
+            return False
+
+        active_user = self.r.get(LOCK_KEY)
+        if active_user == session_id:
+            self.r.delete(LOCK_KEY)
+            self.r.delete(f"{HEARTBEAT_KEY}:{session_id}")
+            self._process_next_in_queue()
+            return True
+
+        removed = self.r.lrem(WAITLIST_KEY, 0, session_id)
+        return bool(removed)
+
     def force_release(self):
         """Admin override to clear the current lock."""
         if self.available:

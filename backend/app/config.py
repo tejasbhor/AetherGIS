@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     # 'development' = Local Demo Mode (No Auth, No Queue)
     # 'production'  = Cloud SaaS Mode (Google Auth + Queuing Enabled)
     aether_mode: str = 'development'
+    dev_preview_enabled: bool = False
     
     cors_origins: list[str] = ['http://localhost:5173', 'http://localhost:3000']
 
@@ -36,6 +37,9 @@ class Settings(BaseSettings):
     google_client_id: str = ''
     google_client_secret: str = ''
     google_callback_url: str = 'http://localhost:8000/api/v1/auth/callback'
+    session_cookie_name: str = 'aether_session'
+    session_cookie_secure: bool = False
+    session_cookie_samesite: str = 'lax'
 
     bhuvan_wms_url: str = 'https://bhuvan-ras2.nrsc.gov.in/bhuvan/wms'
     bhuvan_api_key: str = ''

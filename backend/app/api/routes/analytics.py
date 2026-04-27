@@ -445,9 +445,9 @@ async def get_system_config() -> dict:
     """Expose system configuration mode for frontend adaptation."""
     return {
         "mode": settings.aether_mode,
-        "version": "1.0.0",
+        "version": "2.0.0",
         "gpu_support": True,
-        "is_dev_preview": settings.aether_mode != "production",
+        "is_dev_preview": settings.aether_mode != "production" and settings.dev_preview_enabled,
         "features": {
             "auth": settings.aether_mode == "production",
             "queuing": settings.aether_mode == "production",
@@ -469,6 +469,14 @@ async def post_session_heartbeat(session_id: str = Query("")) -> dict:
     from backend.app.services.session_lock import lock_service
     lock_service.heartbeat(session_id)
     return {"status": "ok"}
+
+
+@system_router.post("/session/release")
+async def post_session_release(session_id: str = Query("")) -> dict:
+    """Release an active or queued session when a user leaves the dashboard."""
+    from backend.app.services.session_lock import lock_service
+    released = lock_service.release(session_id)
+    return {"status": "released" if released else "noop"}
 
 
 @system_router.get("/performance")

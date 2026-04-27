@@ -51,6 +51,14 @@ API_KEY_REQUIRED_PREFIXES = [
     "/api/v1/system",
 ]
 
+API_KEY_EXEMPT_EXACT = {
+    "/api/v1/system/config",
+    "/api/v1/system/providers",
+    "/api/v1/system/session/status",
+    "/api/v1/system/session/heartbeat",
+    "/api/v1/system/session/release",
+}
+
 
 def _get_redis():
     try:
@@ -116,6 +124,10 @@ def _check_api_key(request: Request) -> bool:
     if not configured_keys:
         return True
 
+    # Authenticated dashboard users can rely on their session cookie instead of an API key.
+    if request.cookies.get(settings.session_cookie_name):
+        return True
+
     provided = (
         request.headers.get("X-API-Key")
         or request.query_params.get("api_key")
@@ -161,7 +173,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                     )
 
         # ── API key check ─────────────────────────────────────────────────────
-        requires_key = any(path.startswith(prefix) for prefix in API_KEY_REQUIRED_PREFIXES)
+        requires_key = any(path.startswith(prefix) for prefix in API_KEY_REQUIRED_PREFIXES) and path not in API_KEY_EXEMPT_EXACT
         if requires_key and not _check_api_key(request):
             return JSONResponse(
                 status_code=401,

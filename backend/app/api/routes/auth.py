@@ -1,7 +1,9 @@
 """AetherGIS - Authentication Routes (Google OAuth)."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request, Response, Depends
+from urllib.parse import urlparse
+
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 import requests
 from backend.app.config import get_settings
@@ -10,6 +12,19 @@ from backend.app.utils.logging import get_logger
 router = APIRouter(prefix="/auth", tags=["Auth"])
 settings = get_settings()
 logger = get_logger(__name__)
+
+
+def _cookie_secure() -> bool:
+    callback_scheme = urlparse(settings.google_callback_url).scheme
+    return settings.session_cookie_secure or settings.aether_mode == "production" or callback_scheme == "https"
+
+
+def _safe_return_path(return_to: str | None) -> str:
+    if not return_to:
+        return "/"
+    if return_to.startswith("/") and not return_to.startswith("//"):
+        return return_to
+    return "/"
 
 @router.get("/login")
 async def login():
@@ -34,11 +49,8 @@ async def login():
     return RedirectResponse(url=auth_url)
 
 @router.get("/callback")
-async def callback(code: str, response: Response):
+async def callback(code: str):
     """Handle Google OAuth callback and issue session token."""
-    if not settings.google_client_id or not settings.google_client_secret:
-        raise HTTPException(status_code=500, detail="Google Auth not configured")
-
     if code == "mock_dev_code":
         # CRITICAL SECURITY GUARD: Never allow mock codes in production
         if settings.aether_mode == "production":
@@ -46,6 +58,8 @@ async def callback(code: str, response: Response):
             raise HTTPException(status_code=403, detail="Unauthorized authentication method")
         access_token = "mock_dev_token_123"
     else:
+        if not settings.google_client_id or not settings.google_client_secret:
+            raise HTTPException(status_code=500, detail="Google Auth not configured")
         # Exchange code for token
         token_url = "https://oauth2.googleapis.com/token"
         token_data = {
@@ -65,11 +79,12 @@ async def callback(code: str, response: Response):
         # We'll use a cookie for simplicity in the AuthGate
         response = RedirectResponse(url="/dashboard")
         response.set_cookie(
-            key="aether_session",
+            key=settings.session_cookie_name,
             value=access_token,
             httponly=True,
-            secure=True, # Should be True in real production
-            samesite="lax",
+            secure=_cookie_secure(),
+            samesite=settings.session_cookie_samesite,
+            path="/",
             max_age=3600 * 24 # 24 hours
         )
         return response
@@ -80,7 +95,7 @@ async def callback(code: str, response: Response):
 @router.get("/me")
 async def get_me(request: Request):
     """Verify current session and return user info."""
-    session = request.cookies.get("aether_session")
+    session = request.cookies.get(settings.session_cookie_name)
     if settings.aether_mode != "production":
         return {"authenticated": True, "user": "demo_user", "mode": "development"}
     
@@ -96,8 +111,14 @@ async def get_me(request: Request):
     }
 
 @router.get("/logout")
-async def logout(response: Response):
+async def logout(return_to: str | None = None):
     """Clear session cookie."""
-    response = RedirectResponse(url="/")
-    response.delete_cookie("aether_session")
+    response = RedirectResponse(url=_safe_return_path(return_to))
+    response.delete_cookie(
+        settings.session_cookie_name,
+        path="/",
+        secure=_cookie_secure(),
+        httponly=True,
+        samesite=settings.session_cookie_samesite,
+    )
     return response

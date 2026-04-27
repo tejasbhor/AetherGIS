@@ -9,6 +9,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 export const apiClient = axios.create({
   baseURL: API_BASE,
   timeout: 30_000,
+  withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -214,6 +215,26 @@ export const fetchSystemConfig = async (): Promise<SystemConfig> => {
 export const fetchSatelliteProviders = async (): Promise<any[]> => {
   const { data } = await apiClient.get('/system/providers');
   return data;
+};
+
+export const releaseSessionLock = async (sessionId: string): Promise<{ status: string }> => {
+  const { data } = await apiClient.post('/system/session/release', null, {
+    params: { session_id: sessionId },
+  });
+  return data;
+};
+
+export const getLogoutUrl = (returnTo: string = '/') => {
+  const base = new URL(`${API_BASE.replace(/\/+$/, '')}/`);
+  base.pathname = `${base.pathname.replace(/\/$/, '')}/auth/logout`;
+  base.searchParams.set('return_to', returnTo);
+  return base.toString();
+};
+
+export const getLoginUrl = () => {
+  const base = new URL(`${API_BASE.replace(/\/+$/, '')}/`);
+  base.pathname = `${base.pathname.replace(/\/$/, '')}/auth/login`;
+  return base.toString();
 };
 
 export const useLayers = (dataSource = 'nasa_gibs') =>
@@ -472,7 +493,7 @@ export const useSystemConfig = () =>
     queryKey: ['system-config'],
     queryFn: fetchSystemConfig,
     staleTime: Infinity, // System mode doesn't change at runtime
-    retry: 3,
+    retry: typeof window !== 'undefined' && ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname) ? false : 3,
   });
 
 export const useAuth = () =>
