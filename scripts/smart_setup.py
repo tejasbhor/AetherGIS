@@ -7,7 +7,12 @@ import os
 PYPROJECT_PATH = "pyproject.toml"
 
 def check_gpu():
-    """Checks for NVIDIA GPU availability."""
+    """Checks for NVIDIA GPU availability, with environment variable override."""
+    # Check for override first
+    force_gpu = os.environ.get("AETHER_FORCE_GPU")
+    if force_gpu is not None:
+        return force_gpu.lower() in ("1", "true", "yes")
+
     if shutil.which("nvidia-smi") is not None:
         try:
             subprocess.check_output(["nvidia-smi", "-L"], stderr=subprocess.STDOUT)

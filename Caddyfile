@@ -2,12 +2,37 @@
 	email {$CADDY_EMAIL:admin@example.com}
 }
 
-{$AETHERGIS_DOMAIN:localhost} {
+# Application & Landing Pages
+{$AETHERGIS_DOMAIN:aethergis.com} {
 	reverse_proxy frontend:80
-	encode gzip
+	encode gzip zstd
+	
+	header {
+		# Security Headers
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
 }
 
-{$AETHERGIS_API_DOMAIN:api.localhost} {
-	reverse_proxy backend:8000
-	encode gzip
+# API Backend
+{$AETHERGIS_API_DOMAIN:api.aethergis.com} {
+	# Root health check
+	@health path /api/v1/health
+	handle @health {
+		reverse_proxy backend:8000
+	}
+
+	# All other API requests
+	handle {
+		reverse_proxy backend:8000
+	}
+
+	encode gzip zstd
+	
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+	}
 }

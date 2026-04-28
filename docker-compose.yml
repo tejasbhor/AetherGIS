@@ -17,17 +17,27 @@ services:
         condition: service_healthy
     networks:
       - aethergis_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 150M
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=${VITE_API_URL:-http://api.localhost/api/v1}
+        - VITE_API_URL=${VITE_API_URL:-https://api.aethergis.com/api/v1}
     container_name: aethergis-frontend
     restart: unless-stopped
     networks:
       - aethergis_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 100M
 
   backend:
     build:
@@ -60,6 +70,11 @@ services:
       start_period: 20s
     networks:
       - aethergis_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 1000M
 
   worker:
     build:
@@ -91,14 +106,17 @@ services:
       - aethergis_logs:/app/backend/data/logs
     networks:
       - aethergis_net
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4000M
 
   postgres:
-    image: postgres:16-alpine
+    image: imresamu/postgis:16-3.4-alpine
     container_name: aethergis-postgres
     restart: unless-stopped
     env_file: .env
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-aethergis}
       POSTGRES_USER: ${POSTGRES_USER:-aethergis}
@@ -112,13 +130,16 @@ services:
       retries: 5
     networks:
       - aethergis_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.20'
+          memory: 500M
 
   redis:
     image: redis:7-alpine
     container_name: aethergis-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-aetherredispass}
     volumes:
       - aethergis_redis_data:/data
@@ -129,6 +150,11 @@ services:
       retries: 5
     networks:
       - aethergis_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 200M
 
 networks:
   aethergis_net:
