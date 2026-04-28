@@ -28,7 +28,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=${VITE_API_URL:-https://api.aethergis.com/api/v1}
+        - VITE_API_URL=${VITE_API_URL:-/api/v1}
     container_name: aethergis-frontend
     restart: unless-stopped
     networks:
