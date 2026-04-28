@@ -28,7 +28,6 @@ backend/app/ai_models/rife/*.pkl
 tmp_*.py
 test_output.txt
 test_results.txt
-uv.lock
 
 # Runtime data — never commit these
 backend/data/exports/
