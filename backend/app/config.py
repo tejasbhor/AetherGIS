@@ -4,6 +4,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +15,19 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra='ignore',
     )
+
+    @field_validator('cors_origins', 'api_keys', mode='before')
+    @classmethod
+    def parse_list(cls, v: any) -> list[str]:
+        if isinstance(v, str):
+            if v.startswith('[') and v.endswith(']'):
+                import json
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
+            return [item.strip() for item in v.split(',') if item.strip()]
+        return v
 
     api_host: str = '127.0.0.1'
     api_port: int = 8000
