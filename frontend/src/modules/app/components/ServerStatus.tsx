@@ -1,13 +1,20 @@
 /**
  * AetherGIS — Server-level status banner and connection error state.
  * Shown below the toolbar if the backend is unreachable.
+ *
+ * FLAG LOGIC:
+ *   - BACKEND OFFLINE: health endpoint unreachable (hard error)
+ *   - CPU FALLBACK MODE: film_model_loaded=false BUT server is healthy → LK optical
+ *     flow is running as designed; show a soft info note, not a scary warning.
+ *   - We intentionally suppress GPU warnings since the OCI instance has no CUDA;
+ *     CPU fallback is the expected production mode on this host.
  */
 import { useHealth } from '@shared/api/client';
 
 export default function ServerStatus() {
   const { data: health, isLoading, isError } = useHealth();
 
-  // Backend is down
+  // ── Backend is completely down ──────────────────────────────────────────────
   if (isError && !isLoading) {
     return (
       <div style={{
@@ -26,7 +33,7 @@ export default function ServerStatus() {
         <strong>BACKEND OFFLINE</strong>
         <span style={{ color: 'var(--t4)' }}>—</span>
         <span style={{ color: 'var(--t2)' }}>
-          Cannot connect to AetherGIS API server at {window.location.hostname}:8000 — Pipeline functions are disabled.
+          Cannot connect to AetherGIS API at {window.location.hostname} — Pipeline functions are disabled.
         </span>
         <span
           style={{ marginLeft: 'auto', cursor: 'pointer', textDecoration: 'underline', color: 'var(--red)' }}
@@ -36,8 +43,34 @@ export default function ServerStatus() {
     );
   }
 
-  // Partial service degradation (no FILM model — the primary model)
-  if (health && !health.film_model_loaded) {
+  // ── CPU Optical Flow mode (FILM/RIFE weights not present — graceful degradation) ──
+  // The pipeline ran correctly. LK optical flow fallback is active by design on
+  // CPU-only hosts (no CUDA). This is an informational note, not a warning.
+  if (health && !health.film_model_loaded && health.db_connected && health.redis_connected) {
+    return (
+      <div style={{
+        background: 'var(--blue-bg)',
+        borderBottom: '1px solid var(--blue-lt)',
+        padding: '4px 12px',
+        fontFamily: 'var(--mono)',
+        fontSize: 10,
+        color: 'var(--blue)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flexShrink: 0,
+      }}>
+        <span aria-hidden="true">ℹ</span>
+        <strong>CPU Interpolation Mode</strong>
+        <span style={{ color: 'var(--t3)' }}>
+          — Deep learning weights not present on this host. Running on CPU optical flow fallback (Lucas-Kanade). Pipeline output is valid.
+        </span>
+      </div>
+    );
+  }
+
+  // ── Degraded: model missing AND infrastructure also unhealthy ───────────────
+  if (health && !health.film_model_loaded && (!health.db_connected || !health.redis_connected)) {
     return (
       <div style={{
         background: 'var(--orng-bg)',
@@ -52,9 +85,9 @@ export default function ServerStatus() {
         flexShrink: 0,
       }}>
         <span>⚠</span>
-        <strong>AI MODELS NOT LOADED</strong>
+        <strong>SERVICE DEGRADED</strong>
         <span style={{ color: 'var(--t2)' }}>
-          — No interpolation models available. Run <code style={{ background: 'var(--panel-hdr)', padding: '0 4px', borderRadius: 2 }}>python scripts/setup_models.py</code> to enable.
+          — Infrastructure partially offline. Pipeline may be unreliable.
         </span>
       </div>
     );

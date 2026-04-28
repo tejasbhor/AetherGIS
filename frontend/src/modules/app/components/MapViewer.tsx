@@ -194,8 +194,8 @@ export default function MapViewer() {
   const [showHUD, setShowHUD] = React.useState(true);
   const [confirmDiscard, setConfirmDiscard] = React.useState(false);
 
-  // Pre-warm browser image cache for upcoming frames
-  useFramePreloader(
+  // Pre-warm browser image cache for upcoming frames (blob URL based — zero network latency)
+  const { getFrameUrl } = useFramePreloader(
     pipelineResult?.job_id ?? null,
     pipelineResult?.frames.length ?? 0,
     currentFrameIndex,
@@ -362,12 +362,15 @@ export default function MapViewer() {
     if (!frame) return;
 
     const resultBbox = pipelineResult.bbox as [number, number, number, number];
+    // Use blob URL from preloader cache (zero-latency) or fall back to API URL
+    const frameUrl = getFrameUrl(frame.frame_index);
+
     overlayLayer.current.setSource(new Static({
-      url: `/api/v1/pipeline/${pipelineResult.job_id}/frames/${frame.frame_index}`,
+      url: frameUrl,
       imageExtent: resultBbox,
       projection: 'EPSG:4326',
     }));
-  }, [pipelineResult, currentFrameIndex]);
+  }, [pipelineResult, currentFrameIndex, getFrameUrl]);
 
   const handleZoom = (delta: number) => {
     if (!mapInstance.current) return;

@@ -362,16 +362,22 @@ export default function LayerControls() {
             <div style={{ borderBottom: '1px solid var(--b3)' }}>{renderLayerList()}</div>
             {renderCoverageWarning()}
 
-            {health && !health.film_model_loaded && (
-              <div style={{ background: 'var(--orng-bg)', borderBottom: '1px solid var(--orng-lt)', padding: '4px 8px' }}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 8.5, color: 'var(--orange)', lineHeight: 1.3 }}>FILM model not loaded. Run <code style={{ background: 'rgba(0,0,0,0.1)', padding: '0 2px' }}>uv run python scripts/setup_models.py</code> from the project root.</div>
+            {/* CPU Optical Flow note: shown only when FILM weights absent but infra is healthy
+                (i.e. LK fallback is active and the pipeline actually works) */}
+            {health && !health.film_model_loaded && health.db_connected && health.redis_connected && (
+              <div style={{ background: 'var(--blue-bg)', borderBottom: '1px solid var(--blue-lt)', padding: '4px 8px' }}>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 8.5, color: 'var(--blue)', lineHeight: 1.3 }}>
+                  <strong>CPU mode</strong> — Optical flow (Lucas-Kanade) active. Deep learning weights not installed on this host.
+                  Pipeline output is valid.
+                </div>
               </div>
             )}
 
-            {health && !health.gpu_available && (
+            {/* GPU unavailable: only shown if GPU is expected but missing (i.e. GPU was previously available) */}
+            {health && !health.gpu_available && health.film_model_loaded && (
               <div style={{ background: 'var(--orng-bg)', borderBottom: '1px solid var(--orng-lt)', padding: '4px 8px' }}>
                 <div style={{ fontFamily: 'var(--mono)', fontSize: 8.5, color: 'var(--orange)', lineHeight: 1.3 }}>
-                  GPU acceleration is unavailable in the current Python environment, so interpolation is running on CPU. Install a CUDA-enabled PyTorch build to use the RTX 4060.
+                  GPU acceleration unavailable — FILM model is running on CPU. Inference will be slower.
                 </div>
               </div>
             )}

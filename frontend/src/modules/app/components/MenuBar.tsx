@@ -166,7 +166,10 @@ export default function MenuBar() {
   const [pendingDataSource, setPendingDataSource] = useState<'nasa_gibs' | 'isro_bhuvan' | 'insat' | null>(null);
   const [exportStatus, setExportStatus] = useState<Record<string, 'idle' | 'loading' | 'done'>>({});
 
+  // filmLoaded: true if FILM or RIFE weights are actually loaded
   const filmLoaded = health?.film_model_loaded ?? health?.rife_model_loaded ?? false;
+  // cpuFallback: pipeline is working but on LK optical flow (no DL weights, healthy infra)
+  const cpuFallback = health && !filmLoaded && health.db_connected && health.redis_connected;
   const gpuOk = health?.gpu_available ?? false;
   const apiOnline = !healthError && !!health;
   const gpuLabel = health?.gpu_device_name?.replace('NVIDIA GeForce ', '') || (gpuOk ? 'Accelerated' : 'CPU-only');
@@ -404,8 +407,16 @@ export default function MenuBar() {
             {dataSource === 'nasa_gibs' ? 'NASA GIBS' : dataSource === 'insat' ? 'MOSDAC' : 'BHUVAN'} {!apiOnline && <span style={{ color: 'var(--red)', fontWeight: 600 }}>(offline)</span>}
           </div>
           <div className="status-pill">
-            <div className={`s-dot ${apiOnline && filmLoaded ? 'ok' : apiOnline ? 'warn' : 'err'}`} />
-            FILM Engine {apiOnline ? (filmLoaded ? '' : <span style={{ color: 'var(--orange)' }}>(loading)</span>) : ''}
+            <div className={`s-dot ${apiOnline && (filmLoaded || cpuFallback) ? (filmLoaded ? 'ok' : 'idle') : apiOnline ? 'warn' : 'err'}`} />
+            FILM Engine{' '}
+            {apiOnline
+              ? filmLoaded
+                ? null
+                : cpuFallback
+                  ? <span style={{ color: 'var(--t4)', fontWeight: 400 }}>(CPU fallback)</span>
+                  : <span style={{ color: 'var(--orange)' }}>(unavailable)</span>
+              : null
+            }
           </div>
           <div className="status-pill">
             <div className={`s-dot ${gpuOk ? 'ok' : 'idle'}`} />
