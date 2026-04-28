@@ -120,7 +120,7 @@ def _check_rate_limit_memory(ip: str) -> tuple[bool, int, int]:
 def _check_api_key(request: Request) -> bool:
     """Validate API key if one is configured in settings."""
     # If no API key is configured, all requests are allowed
-    configured_keys = getattr(settings, "api_keys", [])
+    configured_keys = settings.api_keys_list
     if not configured_keys:
         return True
 

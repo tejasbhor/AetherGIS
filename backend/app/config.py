@@ -4,7 +4,6 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,19 +14,6 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra='ignore',
     )
-
-    @field_validator('cors_origins', 'api_keys', mode='before')
-    @classmethod
-    def parse_list(cls, v: any) -> list[str]:
-        if isinstance(v, str):
-            if v.startswith('[') and v.endswith(']'):
-                import json
-                try:
-                    return json.loads(v)
-                except Exception:
-                    pass
-            return [item.strip() for item in v.split(',') if item.strip()]
-        return v
 
     api_host: str = '127.0.0.1'
     api_port: int = 8000
@@ -41,7 +27,12 @@ class Settings(BaseSettings):
     aether_mode: str = 'development'
     dev_preview_enabled: bool = False
     
-    cors_origins: list[str] = ['http://localhost:5173', 'http://localhost:3000']
+    # Changed to str to prevent Pydantic from auto-parsing as JSON list
+    cors_origins: str = 'http://localhost:5173,http://localhost:3000'
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [item.strip() for item in self.cors_origins.split(',') if item.strip()]
 
     nasa_gibs_base_url: str = 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi'
     nasa_gibs_wmts_url: str = 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/wmts.cgi'
@@ -104,7 +95,11 @@ class Settings(BaseSettings):
 
     # ── Production v2 settings ────────────────────────────────────────────────
     # MODULE 12 — Security
-    api_keys: list[str] = []                       
+    api_keys: str = ''
+
+    @property
+    def api_keys_list(self) -> list[str]:
+        return [item.strip() for item in self.api_keys.split(',') if item.strip()]
     security_hsts_enabled: bool = False
     
     # MODULE 4 — Cache
