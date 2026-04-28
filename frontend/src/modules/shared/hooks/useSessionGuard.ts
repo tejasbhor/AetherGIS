@@ -33,7 +33,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { apiClient, releaseSessionLock, sendSessionHeartbeat, startGraceSession } from '@shared/api/client';
+import { releaseSessionLock, sendSessionHeartbeat, startGraceSession } from '@shared/api/client';
 import { useStore } from '@app/store/useStore';
 import { getLogoutUrl } from '@shared/api/client';
 

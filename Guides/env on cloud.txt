@@ -1,0 +1,45 @@
+cat << 'EOF' > .env
+# ============================================================
+# AetherGIS — Production Environment Configuration
+# ============================================================
+
+# ---- Application ----
+AETHER_MODE=production
+DEBUG=false
+APP_NAME="AetherGIS GeoAI Platform"
+APP_BASE_URL=https://aethergis.chinmaykudalkar.com
+
+# ---- Networking & Domains ----
+AETHERGIS_DOMAIN=aethergis.chinmaykudalkar.com
+AETHERGIS_API_DOMAIN=aethergis.chinmaykudalkar.com
+CADDY_EMAIL=tejasbhor406@gmail.com
+# Comma-separated is now allowed!
+CORS_ORIGINS=https://aethergis.chinmaykudalkar.com
+VITE_API_URL=https://aethergis.chinmaykudalkar.com/api/v1
+
+# ---- Database (PostGIS) ----
+POSTGRES_DB=aethergis
+POSTGRES_USER=aethergis
+POSTGRES_PASSWORD=Aether_DB_Secure_2026_!
+DATABASE_URL=postgresql+psycopg://aethergis:Aether_DB_Secure_2026_!@postgres:5432/aethergis
+
+# ---- Redis ----
+REDIS_PASSWORD=Aether_Redis_Secure_2026_!
+REDIS_URL=redis://:Aether_Redis_Secure_2026_!@redis:6379/0
+CELERY_BROKER_URL=redis://:Aether_Redis_Secure_2026_!@redis:6379/0
+CELERY_RESULT_BACKEND=redis://:Aether_Redis_Secure_2026_!@redis:6379/1
+
+# ---- Security ----
+SECRET_KEY=432fab61df8a3eb2673bcbbc928ffc2639dac8eee732bea9dcbf5e0d2f96d446bc0931e717daec86329b421447c54566cd88a5fad15b87f4924464bdb72cb34c
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+
+# ---- AI Engines ----
+TORCH_DEVICE=cpu
+CELERY_WORKER_CONCURRENCY=1
+
+# ---- External Providers ----
+NASA_GIBS_API_KEY=
+ENABLE_AUDIT_LOGS=true
+LOG_LEVEL=info
+EOF

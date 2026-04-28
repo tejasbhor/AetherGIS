@@ -26,11 +26,6 @@ import { useEffect, useRef, useCallback } from 'react';
 const AHEAD  = 12;  // frames ahead to preload
 const BEHIND = 4;   // frames back to keep for scrubbing
 
-interface FrameCache {
-  /** blob URL for the frame, ready for use in ImageStatic */
-  blobUrl: string;
-}
-
 export function useFramePreloader(
   jobId: string | null,
   totalFrames: number,

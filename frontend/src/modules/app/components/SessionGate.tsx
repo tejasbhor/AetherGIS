@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { apiClient, releaseSessionLock, useSystemConfig, type SystemConfig } from '@shared/api/client';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSystemConfig, type SystemConfig } from '@shared/api/client';
 import { useStore } from '@app/store/useStore';
 import { useSessionGuard } from '@shared/hooks/useSessionGuard';
 
@@ -169,9 +169,8 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
 
   const queueEnabled = !!resolvedConfig && (resolvedConfig.features.queuing || forceQueuePreview);
 
-  // ── Session lifecycle (heartbeat, idle detection, grace, release) ────────
   // Only active when the user has been granted access.
-  const { phase, idleCountdownSec, resetIdle } = useSessionGuard(
+  const { idleCountdownSec, resetIdle } = useSessionGuard(
     sessionId,
     queueEnabled && status === 'granted',
   );
