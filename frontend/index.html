@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Polyfill for crypto.randomUUID in non-secure (HTTP) contexts
+      if (!window.crypto.randomUUID) {
+        window.crypto.randomUUID = function() {
+          return ([1e7]+-1e3+-4e3+-8e3+-11e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+          );
+        };
+      }
+    </script>
     <title>AetherGIS — AI Temporal Enhancement & WebGIS Platform</title>
     <meta name="description" content="AI-powered temporal enhancement for satellite imagery. Smooth, accuracy-aware interpolation via RIFE + OpenLayers WebGIS visualization." />
     <!-- Prevent FOUC -->
