@@ -225,14 +225,18 @@ export const releaseSessionLock = async (sessionId: string): Promise<{ status: s
 };
 
 export const getLogoutUrl = (returnTo: string = '/') => {
-  const base = new URL(`${API_BASE.replace(/\/+$/, '')}/`);
+  const isRelative = API_BASE.startsWith('/');
+  const baseUrl = isRelative ? `${window.location.origin}${API_BASE}` : API_BASE;
+  const base = new URL(`${baseUrl.replace(/\/+$/, '')}/`);
   base.pathname = `${base.pathname.replace(/\/$/, '')}/auth/logout`;
   base.searchParams.set('return_to', returnTo);
   return base.toString();
 };
 
 export const getLoginUrl = () => {
-  const base = new URL(`${API_BASE.replace(/\/+$/, '')}/`);
+  const isRelative = API_BASE.startsWith('/');
+  const baseUrl = isRelative ? `${window.location.origin}${API_BASE}` : API_BASE;
+  const base = new URL(`${baseUrl.replace(/\/+$/, '')}/`);
   base.pathname = `${base.pathname.replace(/\/$/, '')}/auth/login`;
   return base.toString();
 };
