@@ -1,18 +1,33 @@
 {
-	email {$CADDY_EMAIL:admin@example.com}
+	email {$CADDY_EMAIL}
 }
 
-# Application & Landing Pages
-{$AETHERGIS_DOMAIN:aethergis.com} {
-	reverse_proxy frontend:80
-	encode gzip zstd
-	
+# --- Production Domain (HTTPS) ---
+{$AETHERGIS_DOMAIN} {
+	# Frontend
+	reverse_proxy aethergis-frontend:3000
+
+	# Backend API
+	handle_path /api/v1/* {
+		reverse_proxy aethergis-backend:8000
+	}
+
+	# Security Headers
 	header {
-		# Security Headers
-		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-		X-Content-Type-Options "nosniff"
-		X-Frame-Options "DENY"
-		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}
+
+# --- Direct IP Access (HTTP) ---
+:80 {
+	# Frontend
+	reverse_proxy aethergis-frontend:3000
+
+	# Backend API
+	handle_path /api/v1/* {
+		reverse_proxy aethergis-backend:8000
 	}
 }
 
