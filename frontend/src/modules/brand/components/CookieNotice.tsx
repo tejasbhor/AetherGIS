@@ -24,10 +24,10 @@ const CookieNotice: React.FC = () => {
         product experience.
       </p>
       <div>
-        <button className="brand-btn brand-btn-ghost" onClick={() => handleChoice('essential')}>
+        <button className="brand-btn brand-btn-ghost brand-btn-sm" onClick={() => handleChoice('essential')}>
           Essential Only
         </button>
-        <button className="brand-btn brand-btn-primary" onClick={() => handleChoice('all')}>
+        <button className="brand-btn brand-btn-primary brand-btn-sm" onClick={() => handleChoice('all')}>
           Accept All Cookies
         </button>
       </div>

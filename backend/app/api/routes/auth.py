@@ -96,18 +96,21 @@ async def callback(code: str):
 async def get_me(request: Request):
     """Verify current session and return user info."""
     session = request.cookies.get(settings.session_cookie_name)
-    if settings.aether_mode != "production":
+    
+    # Development mode with explicit mock token allows bypass
+    if settings.aether_mode != "production" and session == "mock_dev_token_123":
         return {"authenticated": True, "user": "demo_user", "mode": "development"}
     
+    # Production mode or development without mock token requires valid session
     if not session:
         return {"authenticated": False}
     
-    # In production, we would verify the token with Google
-    # For now, we'll return a mock success if the cookie exists
+    # In production with real tokens, verify with Google
+    # For now, we accept any non-empty session cookie as valid (improve with JWT/OAuth verification)
     return {
         "authenticated": True, 
         "user": "authorized_user",
-        "mode": "production"
+        "mode": settings.aether_mode
     }
 
 @router.get("/logout")

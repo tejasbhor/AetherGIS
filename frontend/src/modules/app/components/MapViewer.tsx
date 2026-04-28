@@ -1,9 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
 import ImageLayer from 'ol/layer/Image';
 import OSM from 'ol/source/OSM';
+import XYZ from 'ol/source/XYZ';
 import Static from 'ol/source/ImageStatic';
 import { fromLonLat } from 'ol/proj';
 
@@ -21,7 +22,7 @@ import { applyLayerPreset } from '@shared/utils/layerDefaults';
 import { useFramePreloader } from '@shared/hooks/useFramePreloader';
 
 import 'ol/ol.css';
-import { Eye, EyeOff, Square, Layers, Info, Plus, Minus } from 'lucide-react';
+import { Eye, EyeOff, Square, Layers, Info, Plus, Minus, Map as MapIcon, Satellite } from 'lucide-react';
 
 // ─── Styles & Helpers ─────────────────────────────────────────────────────────
 
@@ -169,6 +170,10 @@ export default function MapViewer() {
   const footprintSource = useRef<VectorSource | null>(null);
   const domainSource = useRef<VectorSource | null>(null);
   const overlayLayer = useRef<ImageLayer<Static> | null>(null);
+  const baseLayerRef = useRef<TileLayer | null>(null);
+
+  // Base layer state: 'osm' | 'satellite'
+  const [baseLayerType, setBaseLayerType] = useState<'osm' | 'satellite'>('osm');
 
   const {
     bbox,
@@ -216,9 +221,22 @@ export default function MapViewer() {
     const pipelineLayer = new ImageLayer<Static>({ opacity: 0.95, zIndex: 4 });
     overlayLayer.current = pipelineLayer;
 
+    // Create base layer based on current selection
+    const baseLayer = new TileLayer({
+      source: baseLayerType === 'satellite' 
+        ? new XYZ({
+            // NASA GIBS - Blue Marble Next Generation (free, no API key)
+            url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default//GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg',
+            maxZoom: 8,
+            attributions: 'NASA GIBS / Blue Marble'
+          })
+        : new OSM()
+    });
+    baseLayerRef.current = baseLayer;
+
     const map = new Map({
       target: mapRef.current,
-      layers: [new TileLayer({ source: new OSM() }), footprintLayer, presetLayer, pipelineLayer, aoiLayer],
+      layers: [baseLayer, footprintLayer, presetLayer, pipelineLayer, aoiLayer],
       view: new View({ center: fromLonLat([80, 15]), zoom: 5, minZoom: 2, maxZoom: 14 }),
       controls: [], // Disable ALL default controls to prevent duplication/clutter
     });
@@ -269,6 +287,23 @@ export default function MapViewer() {
       }
     });
   }, [showAoi, showFootprint]);
+
+  // Switch base layer when type changes
+  useEffect(() => {
+    if (!mapInstance.current || !baseLayerRef.current) return;
+    
+    const baseLayer = baseLayerRef.current;
+    const newSource = baseLayerType === 'satellite'
+      ? new XYZ({
+          // NASA GIBS - Blue Marble Next Generation (free, no API key)
+          url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default//GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg',
+          maxZoom: 8,
+          attributions: 'NASA GIBS / Blue Marble'
+        })
+      : new OSM();
+    
+    baseLayer.setSource(newSource);
+  }, [baseLayerType]);
 
   useEffect(() => {
     if (!aoiSource.current || !mapInstance.current) return;
@@ -373,6 +408,24 @@ export default function MapViewer() {
             {showMetadataOverlay ? <Eye /> : <EyeOff />}
           </button>
         </div>
+        
+        {/* Base Layer Switcher */}
+        <div className="cd-group" style={{ marginTop: '12px' }}>
+          <button 
+            className={`cd-btn ${baseLayerType === 'osm' ? 'active' : ''}`} 
+            onClick={() => setBaseLayerType('osm')} 
+            title="Street Map (OpenStreetMap)"
+          >
+            <MapIcon size={16} />
+          </button>
+          <button 
+            className={`cd-btn ${baseLayerType === 'satellite' ? 'active' : ''}`} 
+            onClick={() => setBaseLayerType('satellite')} 
+            title="Satellite Imagery (Esri)"
+          >
+            <Satellite size={16} />
+          </button>
+        </div>
       </div>
 
       {/* RIGHT MIDDLE: NAVIGATION RAIL (Zoom / Arrows) */}
@@ -429,7 +482,9 @@ export default function MapViewer() {
           <span style={{ color: 'rgba(255,255,255,0.4)', borderLeft: '1px solid #222', paddingLeft: 16 }}>LON: {bbox[0].toFixed(4)}° – {bbox[2].toFixed(4)}°E</span>
           <span style={{ color: 'rgba(255,255,255,0.4)', marginLeft: 20 }}>LAT: {bbox[1].toFixed(4)}° – {bbox[3].toFixed(4)}°N</span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 16, alignItems: 'center' }}>
-            <span style={{ color: '#444', fontSize: 7, textTransform: 'uppercase' }}>© OpenStreetMap</span>
+            <span style={{ color: '#444', fontSize: 7, textTransform: 'uppercase' }}>
+              {baseLayerType === 'satellite' ? '© NASA GIBS / Blue Marble' : '© OpenStreetMap'}
+            </span>
             <span style={{ color: '#555' }}>PROJ: EPSG:3857</span>
             <span style={{ color: 'rgba(255,80,80,0.9)', cursor: 'pointer', fontFamily: 'var(--cond)', fontWeight: 700, letterSpacing: '0.04em' }} onClick={() => setConfirmDiscard(true)}>[ DISCARD AOI ]</span>
           </div>

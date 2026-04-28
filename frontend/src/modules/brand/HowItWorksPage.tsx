@@ -102,7 +102,7 @@ const HowItWorksPage: React.FC = () => {
           Access is limited to ensure stable compute allocation. Request access to begin.
         </p>
         <Link to="/access" className="brand-btn brand-btn-primary">
-          Request Access
+          Request Platform Access
         </Link>
       </section>
 

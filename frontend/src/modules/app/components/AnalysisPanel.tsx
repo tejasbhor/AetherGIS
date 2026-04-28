@@ -505,17 +505,6 @@ export default function AnalysisPanel() {
         )}
       </div>
 
-      {/* Scientific Disclaimer — professional meteorological product notice */}
-      <div className="warn-strip">
-        <div className="ws-title">⚠ Product Notice</div>
-        <div className="ws-body">
-          AI-interpolated frames are <strong>synthetically generated approximations</strong> intended for qualitative temporal analysis only.
-          They are <strong>not suitable</strong> for operational forecasting, storm advisory, or scientific measurement.
-          Always refer to original observed satellite data for authoritative analysis.
-          <br />
-          <span style={{ color: 'var(--t4)', fontSize: 8 }}>Source: NASA GIBS · Model: Google FILM v1 · SSIM/TCS metrics measure AI self-consistency only.</span>
-        </div>
-      </div>
     </div>
   );
 }

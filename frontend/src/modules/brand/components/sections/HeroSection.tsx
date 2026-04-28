@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { ArrowRight, Target, ShieldCheck, Globe, BrainCircuit, Satellite, Lock } from "lucide-react";
 
 interface HeroSectionProps {
@@ -30,15 +31,15 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onEnterDashboard }) => {
         </p>
 
         <div className="brand-hero-actions">
-          <button className="brand-cta-button" onClick={onEnterDashboard}>
-            Explore AetherGIS <ArrowRight size={15} strokeWidth={2.2} />
+          <button className="brand-btn brand-btn-primary brand-btn-lg brand-cta-button" onClick={onEnterDashboard}>
+            Launch Workspace <ArrowRight size={15} strokeWidth={2.2} />
           </button>
-          <button
-            className="brand-btn brand-btn-ghost brand-hero-ghost-btn"
-            onClick={() => (window.location.href = "/docs")}
+          <Link
+            to="/docs"
+            className="brand-btn brand-btn-ghost brand-btn-lg brand-hero-ghost-btn"
           >
-            View Documentation
-          </button>
+            Read Documentation
+          </Link>
         </div>
 
         <div className="brand-hero-features">

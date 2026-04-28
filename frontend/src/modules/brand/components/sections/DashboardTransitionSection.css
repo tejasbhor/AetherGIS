@@ -1,8 +1,10 @@
 .transition-section {
   position: relative;
   width: 100%;
-  height: 100vh;
-  padding: 160px var(--brand-page-gutter) 0;
+  /* Match hero: viewport height accounting for navbar */
+  min-height: var(--brand-hero-viewport);
+  /* Match hero: navbar + breathing room */
+  padding: var(--brand-section-top-padding) var(--brand-page-gutter) 60px;
   background: transparent;
   color: #fff;
   z-index: 10;
@@ -10,20 +12,6 @@
   align-items: flex-start;
   justify-content: center;
   overflow: hidden;
-}
-
-/* Cinematic Contrast Mask */
-.transition-section::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to right, 
-    rgba(0, 0, 0, 0.8) 0%, 
-    rgba(0, 0, 0, 0.4) 40%, 
-    transparent 80%
-  );
-  pointer-events: none;
-  z-index: -1;
 }
 
 .transition-container {
@@ -52,7 +40,7 @@
 .tag-icon-blue { color: #3b82f6; margin-right: 8px; }
 
 .transition-title {
-  font-size: clamp(3.2rem, 6vw, 5rem);
+  font-size: clamp(38px, 6vw, 72px); /* Slightly larger as it's the final section */
   line-height: 0.95;
   font-weight: 800;
   letter-spacing: -0.05em;
@@ -63,6 +51,7 @@
 .transition-title-gradient {
   background: linear-gradient(to right, #60a5fa, #22d3ee);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -91,31 +80,14 @@
 .access-note-box p { font-size: 0.95rem; color: #64748b; margin: 0; line-height: 1.4; }
 .text-white { color: #fff; font-weight: 600; }
 
-.enter-button-primary {
-  height: 64px;
-  padding: 0 40px;
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
-  border: none;
-  border-radius: 12px;
-  color: #fff;
-  font-size: 1.1rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  cursor: pointer;
-  box-shadow: 0 0 40px rgba(37, 99, 235, 0.3);
-  transition: all 0.3s ease;
+.transition-cta-button {
   width: fit-content;
-}
-
-.enter-button-primary:hover {
-  box-shadow: 0 0 60px rgba(37, 99, 235, 0.5);
-  transform: translateY(-2px);
+  min-width: 250px;
+  justify-content: center;
 }
 
 .arrow-icon { transition: transform 0.3s ease; }
-.enter-button-primary:hover .arrow-icon { transform: translateX(6px); }
+.transition-cta-button:hover .arrow-icon { transform: translateX(6px); }
 
 .security-footer-note {
   display: flex;

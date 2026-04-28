@@ -35,6 +35,7 @@ import ServerStatus from '@app/components/ServerStatus';
 import MenuBar from '@app/components/MenuBar';
 import SessionManager from '@app/components/SessionManager';
 import SessionGate from '@app/components/SessionGate';
+import ProductNoticeBanner from '@app/components/ProductNoticeBanner';
 import { DashboardThemeProvider } from '@app/theme/DashboardThemeProvider';
 import { useStore } from '@app/store/useStore';
 
@@ -212,6 +213,7 @@ function AppModule() {
           <div className="dock dock-right"><AnalysisPanel /></div>
         </div>
         <StatusBar />
+        <ProductNoticeBanner />
       </div>
     </SessionGate>
   );

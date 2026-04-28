@@ -140,7 +140,7 @@ const SecurityPage: React.FC = () => {
           We review all security disclosures and respond within 48 hours.
         </p>
         <a href="mailto:security@aethergis.ai" className="brand-btn brand-btn-primary">
-          Contact Security Team
+          Report a Security Issue
         </a>
       </section>
 

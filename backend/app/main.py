@@ -112,32 +112,78 @@ app.include_router(system_router, prefix='/api/v1')
 app.include_router(stream_router, prefix='/api/v1')
 
 # ── Health ─────────────────────────────────────────────────────────────────────
+# Module-level connection pool for health checks (reuses connections)
+_health_redis_pool: redis_sync.Redis | None = None
+
+def _get_health_redis() -> redis_sync.Redis | None:
+    """Get or create Redis connection for health checks."""
+    global _health_redis_pool
+    if _health_redis_pool is None:
+        try:
+            _health_redis_pool = redis_sync.from_url(
+                settings.redis_url,
+                socket_connect_timeout=2,
+                socket_timeout=2,
+                max_connections=5,
+                decode_responses=True
+            )
+        except Exception:
+            return None
+    return _health_redis_pool
+
+
 @app.get('/api/v1/health', response_model=HealthResponse, tags=['System'])
 async def health_check() -> HealthResponse:
+    """Health check endpoint with efficient connection reuse."""
     redis_ok = False
     db_ok = False
+    
+    # Check Redis (with connection reuse)
     try:
-        redis_client = redis_sync.from_url(settings.redis_url, socket_connect_timeout=2)
-        redis_client.ping()
-        redis_ok = True
+        redis_client = _get_health_redis()
+        if redis_client:
+            redis_client.ping()
+            redis_ok = True
     except Exception:
-        pass
+        redis_ok = False
+        # Reset pool on failure to force reconnection next time
+        global _health_redis_pool
+        _health_redis_pool = None
+    
+    # Check Database (with proper session handling)
+    db = None
     try:
         db = SessionLocal()
         db.execute(text("SELECT 1"))
         db_ok = True
     except Exception:
-        pass
+        db_ok = False
     finally:
-        try:
-            db.close()
-        except Exception:
-            pass
+        if db:
+            try:
+                db.close()
+            except Exception:
+                pass
 
+    # Check GPU availability (cached, non-blocking)
     gpu_ok = torch.cuda.is_available() or (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available())
-    gpu_device_name = "Apple Metal (MPS)" if not torch.cuda.is_available() and hasattr(torch.backends, 'mps') and torch.backends.mps.is_available() else (torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)
-    rife_loaded = get_engine('rife').is_loaded
-    film_loaded = get_engine('film').is_loaded
+    gpu_device_name = None
+    if gpu_ok:
+        if torch.cuda.is_available():
+            try:
+                gpu_device_name = torch.cuda.get_device_name(0)
+            except Exception:
+                gpu_device_name = "CUDA"
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            gpu_device_name = "Apple Metal (MPS)"
+
+    # Check model loading status (cached)
+    try:
+        rife_loaded = get_engine('rife').is_loaded
+        film_loaded = get_engine('film').is_loaded
+    except Exception:
+        rife_loaded = False
+        film_loaded = False
 
     return HealthResponse(
         status='healthy' if redis_ok and db_ok else 'degraded',

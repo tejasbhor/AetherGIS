@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { 
   FileText, 
   ShieldCheck, 
@@ -125,9 +126,9 @@ const Terms: React.FC = () => {
           If you need clarification on acceptable use or have questions about platform access,
           our team is here to help.
         </p>
-        <a href="/contact" className="brand-btn brand-btn-primary">
-          Contact Us
-        </a>
+        <Link to="/contact" className="brand-btn brand-btn-primary">
+          Contact the Team
+        </Link>
       </section>
 
     </BrandPageShell>

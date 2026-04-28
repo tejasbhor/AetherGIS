@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
   ArrowRight, 
@@ -62,19 +63,18 @@ const DashboardTransitionSection: React.FC = () => {
               </p>
             </motion.div>
 
-            <motion.button 
-              className="enter-button-primary"
+            <motion.div
               initial="hidden"
               whileInView="visible"
               variants={itemVariants}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
             >
-              <span>Enter AetherGIS</span>
-              <ArrowRight size={20} className="arrow-icon" />
-            </motion.button>
+              <Link to="/access" className="brand-btn brand-btn-primary brand-btn-lg transition-cta-button">
+                <span>Request Platform Access</span>
+                <ArrowRight size={20} className="arrow-icon" />
+              </Link>
+            </motion.div>
 
             <motion.div 
               className="security-footer-note"

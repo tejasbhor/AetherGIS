@@ -105,14 +105,14 @@ const AccessPage: React.FC = () => {
 
       {/* ── CTA ── */}
       <section className="brand-security-contact">
-        <h2>Need immediate access?</h2>
+        <h2>Need expedited access?</h2>
         <p>
           If you have an urgent research collaboration or institutional partnership, contact us
           directly for expedited review.
         </p>
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-          <Link to="/contact" className="brand-btn brand-btn-ghost">Contact Us</Link>
-          <Link to="/docs" className="brand-btn brand-btn-primary">Read Documentation</Link>
+        <div className="brand-security-contact-actions">
+          <Link to="/docs" className="brand-btn brand-btn-ghost">Review Documentation</Link>
+          <Link to="/contact" className="brand-btn brand-btn-primary">Request Priority Review</Link>
         </div>
       </section>
 

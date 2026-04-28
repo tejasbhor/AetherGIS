@@ -33,6 +33,9 @@ uv.lock
 # Runtime data — never commit these
 backend/data/exports/
 backend/data/cache/
+backend/data/audit/
+backend/data/checkpoints/
+backend/data/runs/
 backend/data/*.zip
 backend/data/*.mp4
 

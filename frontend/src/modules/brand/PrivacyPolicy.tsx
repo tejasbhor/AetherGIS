@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Shield, 
   Lock, 
@@ -134,9 +135,9 @@ const PrivacyPolicy: React.FC = () => {
               analysis only. They are not suitable for scientific measurement or operational
               forecasting without domain expert review.
             </p>
-            <a href="/disclaimer" className="brand-security-disclaimer-link">
+            <Link to="/disclaimer" className="brand-security-disclaimer-link">
               Read full disclaimer →
-            </a>
+            </Link>
           </div>
         </div>
       </section>

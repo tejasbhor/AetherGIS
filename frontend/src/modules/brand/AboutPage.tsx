@@ -194,8 +194,8 @@ const AboutPage: React.FC = () => {
           <h2>Ready to explore?</h2>
           <p>Read the documentation to get started, or request access to the platform.</p>
           <div className="brand-about-cta-actions">
-            <Link to="/docs" className="brand-btn brand-btn-ghost">Read the Docs</Link>
-            <Link to="/access" className="brand-btn brand-btn-primary">Request Access</Link>
+            <Link to="/docs" className="brand-btn brand-btn-ghost">Review Documentation</Link>
+            <Link to="/access" className="brand-btn brand-btn-primary">Request Platform Access</Link>
           </div>
         </section>
 

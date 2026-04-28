@@ -14,85 +14,13 @@ import AccessModelSection from "./sections/AccessModelSection";
 import UseCasesSection from "./sections/UseCasesSection";
 import DashboardTransitionSection from "./sections/DashboardTransitionSection";
 
-const SNAPPING_MILESTONES = [
-  // Triggers at ~40% of the way into each section's transition window
-  { threshold: 0.04, target: 0.10, index: 0 }, // Problem (Window 0.0-0.1)
-  { threshold: 0.19, target: 0.25, index: 1 }, // System (Window 0.15-0.25)
-  { threshold: 0.34, target: 0.40, index: 2 }, // Differentiator (Window 0.3-0.4)
-  { threshold: 0.49, target: 0.55, index: 3 }, // Data Sources (Window 0.45-0.55)
-  { threshold: 0.64, target: 0.70, index: 4 }, // Access Model (Window 0.6-0.7)
-  { threshold: 0.79, target: 0.85, index: 5 }, // Use Cases (Window 0.75-0.85)
-  { threshold: 0.93, target: 0.98, index: 6 }, // Final CTA (Window 0.9-1.0)
-];
+const TOTAL_FRAMES = 360;
 
 interface EarthScrollSceneProps {
   onEnterDashboard?: () => void;
 }
 
-interface NarrativeSection {
-  id: string;
-  progress: number;
-  heading: string;
-  content?: string;
-  cta?: boolean;
-}
 
-// Files are named frame_000 … frame_359 → 360 total frames
-const TOTAL_FRAMES = 360;
-
-const narrativeSections: NarrativeSection[] = [
-  { id: "hero", progress: 0, heading: "See Earth as it truly moves." },
-  {
-    id: "problem",
-    progress: 0.18,
-    heading: "Satellite data shows moments — not motion.",
-    content:
-      "Most satellite systems capture Earth at fixed time intervals.\n\nBetween those frames, critical motion is lost — making it difficult to understand how atmospheric and environmental events actually evolve.\n\nUsers are forced to interpret changes manually, increasing complexity and reducing clarity.",
-  },
-  {
-    id: "solution",
-    progress: 0.34,
-    heading: "Reconstructing motion from observation gaps.",
-    content:
-      "AetherGIS bridges temporal gaps in satellite imagery using AI-based frame interpolation.\n\nIt generates smooth transitions between real observations — transforming disconnected frames into continuous visual narratives.",
-  },
-  {
-    id: "system",
-    progress: 0.50,
-    heading: "A system designed for real analysis.",
-    content:
-      "From region selection to temporal playback, AetherGIS provides a complete WebGIS environment for exploring satellite data.\n\n• Select region, layer, and time range\n• Run AI interpolation pipeline\n• Visualize results with timeline playback\n• Compare original and generated frames",
-  },
-  {
-    id: "differentiator",
-    progress: 0.65,
-    heading: "Not just interpolation. Controlled interpolation.",
-    content:
-      "Every generated frame is evaluated before it is shown.\n\nAetherGIS integrates a multi-layer validation system:\n\n• Optical flow consistency checks\n• Temporal gap-aware interpolation\n• Pixel-difference thresholding\n• Confidence scoring per frame\n\nYou don't just see motion — you understand its reliability.",
-  },
-  {
-    id: "access",
-    progress: 0.80,
-    heading: "Engineered for stability.",
-    content:
-      "AetherGIS uses a controlled access model to ensure reliable performance.\n\n• Single active compute session\n• Queue-based user access\n• Dedicated processing window per session\n\nThis guarantees consistent GPU performance and prevents system overload.",
-  },
-  {
-    id: "disclaimer",
-    progress: 0.92,
-    heading: "AI-generated content — handle with care.",
-    content:
-      "Interpolated frames are visually plausible approximations.\n\nThey are NOT suitable for:\n• Scientific measurement\n• Forecasting\n• Operational decision-making\n\nAlways refer to original satellite data for authoritative analysis.",
-  },
-  {
-    id: "cta",
-    progress: 1,
-    heading: "Explore the system.",
-    content:
-      "Access is limited to ensure performance and accuracy. Start a session and experience AetherGIS in action.",
-    cta: true,
-  },
-];
 
 const EarthScrollScene: React.FC<EarthScrollSceneProps> = ({ onEnterDashboard }) => {
   const containerRef   = useRef<HTMLDivElement>(null);
@@ -216,56 +144,8 @@ const EarthScrollScene: React.FC<EarthScrollSceneProps> = ({ onEnterDashboard })
     return () => window.removeEventListener("resize", onResize);
   }, [renderFrame]);
 
-   // ── Active narrative section ──────────────────────────────
-   useMotionValueEvent(scrollYProgress, "change", (_v) => {
-     let bestDist = Infinity;
-     // only consider sections up to current progress (prefer "behind" sections)
-     for (const sec of narrativeSections) {
-       if (sec.progress > _v + 0.01) continue;
-       const dist = _v - sec.progress;
-       if (dist < bestDist) { bestDist = dist; }
-     }
-   });
 
-  // --- Cinematic Snap Logic (Downward Only) ---
-  const lastSnappedIndex = React.useRef<number>(-1);
-  const lastScrollY = React.useRef<number>(0);
-  const isSnapping = React.useRef<boolean>(false);
 
-  useMotionValueEvent(scrollYProgress, "change", (progress) => {
-    const currentScrollY = window.scrollY;
-    const isScrollingDown = currentScrollY > lastScrollY.current;
-    lastScrollY.current = currentScrollY;
-
-    if (!isScrollingDown || isSnapping.current) return;
-
-    const milestone = SNAPPING_MILESTONES.find(m => 
-      progress > m.threshold && 
-      progress < m.target && 
-      m.index > lastSnappedIndex.current
-    );
-
-    if (milestone) {
-      isSnapping.current = true;
-      lastSnappedIndex.current = milestone.index;
-      
-      const containerTop = containerRef.current?.offsetTop || 0;
-      const containerHeight = containerRef.current?.offsetHeight || 0;
-      
-      // Calculate target with absolute precision to align with peak opacity
-      const targetScroll = containerTop + (containerHeight * milestone.target);
-
-      window.scrollTo({
-        top: targetScroll,
-        behavior: "smooth"
-      });
-
-      // Extended lock to prevent "jitter" during the smooth transition
-      setTimeout(() => {
-        isSnapping.current = false;
-      }, 1200);
-    }
-  });
 
   return (
     // Outer: tall enough for scroll progression (pinning handle)

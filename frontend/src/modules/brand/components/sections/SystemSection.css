@@ -1,8 +1,10 @@
 .system-section {
   position: relative;
   width: 100%;
-  height: 100vh;
-  padding: 160px var(--brand-page-gutter) 0;
+  /* Match hero: viewport height accounting for navbar */
+  min-height: var(--brand-hero-viewport);
+  /* Match hero: navbar + breathing room */
+  padding: var(--brand-section-top-padding) var(--brand-page-gutter) 60px;
   background: transparent;
   color: #fff;
   z-index: 10;
@@ -20,7 +22,7 @@
 .system-content-grid {
   display: grid;
   grid-template-columns: 0.9fr 1.3fr;
-  gap: 60px;
+  gap: 80px;
   align-items: flex-start;
 }
 
@@ -32,16 +34,17 @@
 }
 
 .system-title {
-  font-size: clamp(2rem, 3.8vw, 3.2rem);
+  font-size: clamp(38px, 5.5vw, 62px);
   line-height: 1.05;
   font-weight: 700;
   letter-spacing: -0.03em;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .system-title-gradient {
   background: linear-gradient(to right, #60a5fa, #22d3ee);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 

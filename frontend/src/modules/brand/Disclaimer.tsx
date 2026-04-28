@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { 
   AlertTriangle, 
   Brain, 
@@ -121,13 +122,13 @@ const Disclaimer: React.FC = () => {
 
       {/* ── CTA ── */}
       <section className="brand-security-contact">
-        <h2>Need clarity?</h2>
+        <h2>Need clarification?</h2>
         <p>
           Review the full terms or reach out if you have questions about responsible use.
         </p>
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-          <a href="/terms" className="brand-btn brand-btn-ghost">Terms of Use</a>
-          <a href="/contact" className="brand-btn brand-btn-primary">Contact</a>
+        <div className="brand-security-contact-actions">
+          <Link to="/terms" className="brand-btn brand-btn-ghost">Review Terms of Use</Link>
+          <Link to="/contact" className="brand-btn brand-btn-primary">Contact the Team</Link>
         </div>
       </section>
 
