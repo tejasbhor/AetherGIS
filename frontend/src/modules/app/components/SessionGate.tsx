@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSystemConfig, type SystemConfig } from '@shared/api/client';
+import { apiClient, useSystemConfig, type SystemConfig } from '@shared/api/client';
 import { useStore } from '@app/store/useStore';
 import { useSessionGuard } from '@shared/hooks/useSessionGuard';
 
