@@ -118,7 +118,7 @@ const AccessModelSection: React.FC = () => {
                       <div className="session-avatar"><User size={32} /></div>
                       <svg viewBox="0 0 100 100" className="session-ring">
                         <circle cx="50" cy="50" r="48" className="ring-bg" />
-                        <motion.circle cx="50" cy="50" r="48" className="ring-fill" initial={{ pathLength: 0 }} whileInView={{ pathLength: 0.72 }} transition={{ duration: 2, ease: "easeInOut" }} />
+                        <motion.circle cx="50" cy="50" r="48" className="ring-fill" initial={{ pathLength: 0 }} whileInView={{ pathLength: 0.72 }} transition={{ duration: 2, ease: "easeInOut" as any }} />
                       </svg>
                     </div>
                     <div className="session-user-info">
@@ -132,7 +132,7 @@ const AccessModelSection: React.FC = () => {
                       <strong>72%</strong>
                     </div>
                     <div className="progress-bar-bg">
-                      <motion.div className="progress-bar-fill" initial={{ width: 0 }} whileInView={{ width: "72%" }} transition={{ duration: 2, ease: "easeInOut" }} />
+                      <motion.div className="progress-bar-fill" initial={{ width: 0 }} whileInView={{ width: "72%" }} transition={{ duration: 2, ease: "easeInOut" as any }} />
                     </div>
                     <div className="session-eta">
                       <span>Estimated time remaining</span>

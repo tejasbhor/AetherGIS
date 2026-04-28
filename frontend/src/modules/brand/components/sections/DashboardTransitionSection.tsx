@@ -19,7 +19,7 @@ const DashboardTransitionSection: React.FC = () => {
     visible: { 
       opacity: 1, 
       y: 0,
-      transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } 
+      transition: { duration: 0.8, ease: "easeOut" as any } 
     },
   };
 
@@ -94,7 +94,7 @@ const DashboardTransitionSection: React.FC = () => {
             className="dashboard-perspective-container"
             initial={{ opacity: 0, x: 100, rotateY: 10 }}
             whileInView={{ opacity: 1, x: 0, rotateY: -15 }}
-            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 1.2, ease: "easeOut" as any }}
             viewport={{ once: true }}
           >
             <div className="dashboard-frame">
