@@ -4,7 +4,7 @@
 
 # --- Combined Access (Domain + IP) ---
 # This block handles the IP address and any domains pointing to it
-{$AETHERGIS_DOMAIN}, civiclens.space, http://150.136.90.121, http://localhost, :80 {
+{$AETHERGIS_DOMAIN}, aethergis.civiclens.space, http://150.136.90.121, http://localhost, :80 {
     # Frontend
     reverse_proxy aethergis-frontend:80
 
