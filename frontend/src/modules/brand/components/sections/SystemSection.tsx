@@ -1,5 +1,5 @@
 import React from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Globe, Calendar, BrainCircuit, Play, Columns, Target } from "lucide-react";
 import "./SystemSection.css";
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Info, Clock, Layers, HelpCircle, BarChart3, Target, ChevronDown } from "lucide-react";
 import "./ProblemSection.css";
 

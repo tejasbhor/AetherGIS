@@ -14,7 +14,6 @@
     "@types/ol": "^6.5.3",
     "axios": "^1.13.6",
     "date-fns": "^4.1.0",
-    "framer-motion": "^11.18.2",
     "lucide-react": "^1.7.0",
     "motion": "^12.38.0",
     "ol": "^10.8.0",
