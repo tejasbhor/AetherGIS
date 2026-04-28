@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { apiClient, useSystemConfig, type SystemConfig } from '@shared/api/client';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { apiClient, releaseSessionLock, useSystemConfig, type SystemConfig } from '@shared/api/client';
 import { useStore } from '@app/store/useStore';
+import { useSessionGuard } from '@shared/hooks/useSessionGuard';
 
 interface SessionGateProps {
   children: React.ReactNode;
@@ -18,6 +19,10 @@ const LOCAL_FALLBACK_CONFIG: SystemConfig = {
     mosdac_offline: true,
   },
 };
+
+// ─── Queue poll interval (ms) — snappy, but not hammering ───────────────────
+// Queued users poll this fast so handover completes within 3–6 s of lock expiry.
+const QUEUE_POLL_MS = 3000;
 
 /** Animated satellite orbit rings */
 const OrbitRings: React.FC = () => (
@@ -80,16 +85,81 @@ const QueueTrack: React.FC<{ position: number; total?: number }> = ({ position, 
   );
 };
 
+/** Idle timeout warning overlay — shown over the dashboard when idle. */
+const IdleWarningOverlay: React.FC<{
+  countdownSec: number;
+  onDismiss: () => void;
+}> = ({ countdownSec, onDismiss }) => (
+  <div
+    style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 10000,
+      background: 'rgba(2,8,22,0.88)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backdropFilter: 'blur(6px)',
+    }}
+    role="alertdialog"
+    aria-modal="true"
+    aria-label="Session idle timeout warning"
+    aria-describedby="idle-warn-desc"
+  >
+    <div style={{
+      background: 'linear-gradient(135deg, rgba(10,20,50,0.98) 0%, rgba(5,12,30,0.98) 100%)',
+      border: '1px solid rgba(245,158,11,0.4)',
+      borderRadius: 16,
+      padding: '36px 40px',
+      maxWidth: 420,
+      textAlign: 'center',
+      boxShadow: '0 0 60px rgba(245,158,11,0.15)',
+    }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>⏱</div>
+      <h2 style={{ color: '#f59e0b', fontFamily: 'var(--cond)', fontSize: 22, marginBottom: 8 }}>
+        Session Idle Warning
+      </h2>
+      <p id="idle-warn-desc" style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+        No activity detected. Your session will be automatically released and given to the next user in{' '}
+        <strong style={{ color: '#f59e0b' }}>{countdownSec} second{countdownSec !== 1 ? 's' : ''}</strong>.
+      </p>
+      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 24 }}>
+        Move your mouse, press a key, or click below to stay active.
+      </p>
+      <button
+        onClick={onDismiss}
+        style={{
+          background: 'linear-gradient(90deg, #f59e0b, #d97706)',
+          border: 'none',
+          borderRadius: 8,
+          padding: '10px 28px',
+          color: '#000',
+          fontWeight: 700,
+          fontSize: 14,
+          cursor: 'pointer',
+          letterSpacing: '0.04em',
+        }}
+        autoFocus
+      >
+        I'm Still Here
+      </button>
+    </div>
+  </div>
+);
+
+
+// ─── Main SessionGate ─────────────────────────────────────────────────────────
 const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
-  const sessionId = useStore((s) => s.sessionId);
-  const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+  const sessionId    = useStore((s) => s.sessionId);
+  const isLocalHost  = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
   const { data: config, isLoading: configLoading } = useSystemConfig();
   const resolvedConfig = config ?? (isLocalHost ? LOCAL_FALLBACK_CONFIG : null);
-  const [status, setStatus] = useState<'loading' | 'granted' | 'waiting' | 'error'>('loading');
-  const [queuePos, setQueuePos] = useState(0);
+  const [status, setStatus]             = useState<'loading' | 'granted' | 'waiting' | 'error'>('loading');
+  const [queuePos, setQueuePos]         = useState(0);
   const [estimatedWait, setEstimatedWait] = useState(0);
   const [activeUserHint, setActiveUserHint] = useState('');
-  const [pollCount, setPollCount] = useState(0);
+  const [pollCount, setPollCount]       = useState(0);
+  const [secondsUntilNext, setSecondsUntilNext] = useState(QUEUE_POLL_MS / 1000);
 
   const forceQueuePreview = useMemo(() => {
     if (!resolvedConfig?.is_dev_preview) return false;
@@ -99,6 +169,14 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
 
   const queueEnabled = !!resolvedConfig && (resolvedConfig.features.queuing || forceQueuePreview);
 
+  // ── Session lifecycle (heartbeat, idle detection, grace, release) ────────
+  // Only active when the user has been granted access.
+  const { phase, idleCountdownSec, resetIdle } = useSessionGuard(
+    sessionId,
+    queueEnabled && status === 'granted',
+  );
+
+  // ── Queue polling ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!resolvedConfig || configLoading) return;
 
@@ -115,10 +193,13 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
       return;
     }
 
-    let cancelled = false;
-    let pollInterval: number | undefined;
+    let cancelled    = false;
+    let pollTimer: number | undefined;
+    let countdownTimer: number | undefined;
 
     const checkStatus = async () => {
+      // Reset countdown display
+      setSecondsUntilNext(QUEUE_POLL_MS / 1000);
       try {
         const { data } = await apiClient.get('/system/session/status', {
           params: { session_id: sessionId },
@@ -131,7 +212,8 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
           setQueuePos(0);
           setEstimatedWait(0);
           setActiveUserHint('');
-          if (pollInterval) window.clearInterval(pollInterval);
+          if (pollTimer) window.clearInterval(pollTimer);
+          if (countdownTimer) window.clearInterval(countdownTimer);
           return;
         }
 
@@ -146,26 +228,24 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
       }
     };
 
+    // Start polling
     checkStatus();
-    pollInterval = window.setInterval(checkStatus, 5000);
+    pollTimer = window.setInterval(checkStatus, QUEUE_POLL_MS);
+
+    // Visual countdown for "next check in Xs"
+    let ticksLeft = Math.floor(QUEUE_POLL_MS / 1000);
+    countdownTimer = window.setInterval(() => {
+      ticksLeft -= 1;
+      setSecondsUntilNext(ticksLeft);
+      if (ticksLeft <= 0) ticksLeft = Math.floor(QUEUE_POLL_MS / 1000);
+    }, 1000);
 
     return () => {
       cancelled = true;
-      if (pollInterval) window.clearInterval(pollInterval);
+      if (pollTimer) window.clearInterval(pollTimer);
+      if (countdownTimer) window.clearInterval(countdownTimer);
     };
   }, [configLoading, forceQueuePreview, queueEnabled, resolvedConfig, sessionId]);
-
-  useEffect(() => {
-    if (!queueEnabled || forceQueuePreview || status !== 'granted') return;
-
-    const interval = window.setInterval(() => {
-      apiClient
-        .post('/system/session/heartbeat', null, { params: { session_id: sessionId } })
-        .catch((err) => console.warn('Heartbeat failed', err));
-    }, 15000);
-
-    return () => window.clearInterval(interval);
-  }, [forceQueuePreview, queueEnabled, sessionId, status]);
 
   /* ── Loading ── */
   if ((!resolvedConfig && configLoading) || status === 'loading') {
@@ -253,7 +333,7 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
 
   /* ── Queue Waiting ── */
   if (status === 'waiting') {
-    const waitMins = estimatedWait || queuePos * 5 || 5;
+    const waitMins = estimatedWait || Math.max(1, Math.ceil(queuePos * 0.75)) || 1;
     return (
       <div className="ag-gate-screen" role="main" aria-label={`Queue position ${queuePos}`}>
         <div className="ag-gate-bg" aria-hidden="true">
@@ -273,10 +353,10 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
             </svg>
           </div>
 
-          <h1 className="ag-gate-title">GPU Hardware Busy</h1>
+          <h1 className="ag-gate-title">Pipeline Controller Busy</h1>
           <p className="ag-gate-copy">
-            AetherGIS maintains one active GPU controller per session to ensure stable interpolation
-            performance and complete session isolation. You've been placed in the access queue.
+            AetherGIS runs one active session at a time to ensure stable interpolation performance
+            and complete data isolation. You've been placed in the access queue.
           </p>
 
           {/* Queue metrics */}
@@ -308,14 +388,14 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
           <QueueTrack position={queuePos} />
 
           <div className="ag-gate-meta">
-            <StatusBadge label="Auto-granted when hardware is free" variant="warning" />
+            <StatusBadge label="Auto-granted when session is free" variant="warning" />
           </div>
 
           <p className="ag-gate-copy ag-gate-copy--small">
-            This page will automatically update — no need to refresh.
+            This page checks automatically every {QUEUE_POLL_MS / 1000} seconds — no need to refresh.
             {pollCount > 0 && (
               <span className="ag-gate-poll-count" aria-live="polite">
-                {' '}Last checked {pollCount * 5}s ago.
+                {' '}Next check in {secondsUntilNext}s.
               </span>
             )}
           </p>
@@ -369,7 +449,15 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
     );
   }
 
-  return <>{children}</>;
+  /* ── Granted: show dashboard + idle warning if triggered ── */
+  return (
+    <>
+      {idleCountdownSec !== null && (
+        <IdleWarningOverlay countdownSec={idleCountdownSec} onDismiss={resetIdle} />
+      )}
+      {children}
+    </>
+  );
 };
 
 export default SessionGate;

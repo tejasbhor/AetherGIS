@@ -224,6 +224,25 @@ export const releaseSessionLock = async (sessionId: string): Promise<{ status: s
   return data;
 };
 
+/** Switch the session to post-pipeline grace mode (5-min export window). */
+export const startGraceSession = async (sessionId: string): Promise<{ status: string; ttl_seconds?: number }> => {
+  const { data } = await apiClient.post('/system/session/start_grace', null, {
+    params: { session_id: sessionId },
+  });
+  return data;
+};
+
+/** Send a heartbeat, optionally switching phase. Returns remaining TTL. */
+export const sendSessionHeartbeat = async (
+  sessionId: string,
+  phase?: 'active' | 'grace',
+): Promise<{ status: string; ttl_seconds?: number; phase?: string }> => {
+  const { data } = await apiClient.post('/system/session/heartbeat', null, {
+    params: { session_id: sessionId, ...(phase ? { phase } : {}) },
+  });
+  return data;
+};
+
 export const getLogoutUrl = (returnTo: string = '/') => {
   const isRelative = API_BASE.startsWith('/');
   const baseUrl = isRelative ? `${window.location.origin}${API_BASE}` : API_BASE;

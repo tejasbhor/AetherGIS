@@ -464,11 +464,28 @@ async def get_session_status(session_id: str = Query("")) -> dict:
 
 
 @system_router.post("/session/heartbeat")
-async def post_session_heartbeat(session_id: str = Query("")) -> dict:
-    """Extend the session lock for an active user."""
+async def post_session_heartbeat(
+    session_id: str = Query(""),
+    phase: str = Query(None, description="'active' or 'grace'"),
+) -> dict:
+    """Extend the session lease. Must be called every ≤30 s to stay alive.
+
+    - In 'active' phase (no pipeline run yet): TTL = 45 s.
+    - In 'grace' phase (post-pipeline, exporting): TTL = 300 s.
+    """
     from backend.app.services.session_lock import lock_service
-    lock_service.heartbeat(session_id)
-    return {"status": "ok"}
+    return lock_service.heartbeat(session_id, phase=phase)
+
+
+@system_router.post("/session/start_grace")
+async def post_session_start_grace(session_id: str = Query("")) -> dict:
+    """Switch session to the post-pipeline grace window (5 min export/download window).
+
+    Frontend should call this immediately after pipeline completion.
+    Heartbeats in grace phase extend the TTL to 5 min instead of 45 s.
+    """
+    from backend.app.services.session_lock import lock_service
+    return lock_service.start_grace(session_id)
 
 
 @system_router.post("/session/release")
@@ -477,6 +494,14 @@ async def post_session_release(session_id: str = Query("")) -> dict:
     from backend.app.services.session_lock import lock_service
     released = lock_service.release(session_id)
     return {"status": "released" if released else "noop"}
+
+
+@system_router.get("/session/queue")
+async def get_session_queue() -> dict:
+    """Return the current queue depth (number of users waiting)."""
+    from backend.app.services.session_lock import lock_service
+    return {"queue_length": lock_service.queue_length()}
+
 
 
 @system_router.get("/performance")
