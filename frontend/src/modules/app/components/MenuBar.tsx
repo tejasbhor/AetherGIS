@@ -166,10 +166,10 @@ export default function MenuBar() {
   const [pendingDataSource, setPendingDataSource] = useState<'nasa_gibs' | 'isro_bhuvan' | 'insat' | null>(null);
   const [exportStatus, setExportStatus] = useState<Record<string, 'idle' | 'loading' | 'done'>>({});
 
-  // filmLoaded: true if FILM or RIFE weights are actually loaded
+  // filmLoaded: true if FILM or RIFE DL weights are actually loaded
   const filmLoaded = health?.film_model_loaded ?? health?.rife_model_loaded ?? false;
-  // cpuFallback: pipeline is working but on LK optical flow (no DL weights, healthy infra)
-  const cpuFallback = health && !filmLoaded && health.db_connected && health.redis_connected;
+  // cpuFallback: backend explicitly signals LK optical flow mode, infra healthy
+  const cpuFallback = health?.cpu_fallback_mode ?? false;
   const gpuOk = health?.gpu_available ?? false;
   const apiOnline = !healthError && !!health;
   const gpuLabel = health?.gpu_device_name?.replace('NVIDIA GeForce ', '') || (gpuOk ? 'Accelerated' : 'CPU-only');

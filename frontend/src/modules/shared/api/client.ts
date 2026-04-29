@@ -58,6 +58,8 @@ export interface HealthResponse {
   gpu_device_name?: string | null;
   rife_model_loaded: boolean;
   film_model_loaded: boolean;
+  /** True when DL weights are absent but LK optical flow fallback is active. Infra is healthy. */
+  cpu_fallback_mode: boolean;
   version: string;
 }
 

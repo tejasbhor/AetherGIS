@@ -236,11 +236,15 @@ class SessionRenameRequest(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     redis_connected: bool
+    db_connected: bool = True          # was missing — caused false SERVICE DEGRADED banners
     gpu_available: bool
     gpu_device_name: Optional[str] = None
     rife_model_loaded: bool
     film_model_loaded: bool = False
-    version: str = "1.0.0"
+    # True when DL weights are absent but LK optical flow fallback is active.
+    # Infrastructure is healthy; pipeline output is valid.
+    cpu_fallback_mode: bool = False
+    version: str = "2.0.0"
 
 
 

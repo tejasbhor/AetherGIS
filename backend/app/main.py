@@ -185,6 +185,10 @@ async def health_check() -> HealthResponse:
         rife_loaded = False
         film_loaded = False
 
+    # cpu_fallback_mode: DL weights absent but infra is healthy — LK optical flow active.
+    # This is the expected state on OCI ARM64 (no CUDA). Pipeline output is valid.
+    cpu_fallback = (not film_loaded and not rife_loaded) and redis_ok and db_ok
+
     return HealthResponse(
         status='healthy' if redis_ok and db_ok else 'degraded',
         redis_connected=redis_ok,
@@ -193,6 +197,7 @@ async def health_check() -> HealthResponse:
         gpu_device_name=gpu_device_name,
         rife_model_loaded=rife_loaded,
         film_model_loaded=film_loaded,
+        cpu_fallback_mode=cpu_fallback,
     )
 
 
