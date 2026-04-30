@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     max_image_resolution: int = 2048
     max_active_runs: int = 1
     max_queued_runs: int = 1
-    run_artifact_ttl_hours: int = 72
+    run_artifact_ttl_hours: int = 24
 
     flow_consistency_threshold: float = 0.15
     flow_rejection_threshold: float = 0.40

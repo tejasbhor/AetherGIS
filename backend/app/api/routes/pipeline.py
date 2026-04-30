@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 import uuid
 from typing import Any
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
+from backend.app.api.deps.identity import resolve_current_user_id
 from backend.app.config import get_settings
 from backend.app.models.schemas import JobStatus, JobStatusResponse, PipelineResult, PipelineRunRequest
 from backend.app.services.job_manager import (
@@ -17,12 +18,26 @@ from backend.app.services.job_manager import (
     save_manifest,
     update_job,
 )
-from backend.app.services.persistence import upsert_run_artifacts
+from backend.app.services.persistence import (
+    cleanup_expired_runs,
+    delete_run as delete_persisted_run,
+    get_run as get_persisted_run,
+    upsert_run_artifacts,
+)
 from backend.app.utils.logging import get_logger
 from backend.app.services.session_lock import lock_service
 router = APIRouter(prefix="/pipeline", tags=["Pipeline"])
 logger = get_logger(__name__)
 settings = get_settings()
+
+
+def _require_owned_run(job_id: str, current_user_id: str) -> dict[str, Any]:
+    run = get_persisted_run(job_id, user_id=current_user_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    return run
+
+
 def _payload_from_request(job_id: str, request: PipelineRunRequest) -> dict[str, Any]:
     return {
         "job_id": job_id,
@@ -69,7 +84,10 @@ async def _run_pipeline_in_process(payload: dict[str, Any]) -> None:
         logger.exception("In-process pipeline execution failed", job_id=job_id)
         fail_job(job_id, str(exc))
 @router.post("/run", response_model=dict)
-async def run_pipeline(request: PipelineRunRequest) -> dict[str, str]:
+async def run_pipeline(
+    request: PipelineRunRequest,
+    current_user_id: str = Depends(resolve_current_user_id),
+) -> dict[str, str]:
     """Submit a pipeline job and return the job ID."""
     allowed, reason = can_accept_new_job()
     if not allowed:
@@ -99,6 +117,7 @@ async def run_pipeline(request: PipelineRunRequest) -> dict[str, str]:
             payload=payload,
             session_id=request.session_id,
             session_name=request.session_name,
+            user_id=current_user_id,
         )
         save_manifest(job_id, manifest)
         run_pipeline_task.apply_async(args=[payload], task_id=job_id)
@@ -112,13 +131,16 @@ async def run_pipeline(request: PipelineRunRequest) -> dict[str, str]:
             payload=payload,
             session_id=request.session_id,
             session_name=request.session_name,
+            user_id=current_user_id,
         )
         save_manifest(job_id, manifest)
         asyncio.create_task(_run_pipeline_in_process(payload))
     return {"job_id": job_id, "status": "QUEUED"}
 @router.get("/{job_id}/status", response_model=JobStatusResponse)
-async def get_job_status(job_id: str) -> JobStatusResponse:
+async def get_job_status(job_id: str, current_user_id: str = Depends(resolve_current_user_id)) -> JobStatusResponse:
     """Poll the status of a pipeline job."""
+    if get_persisted_run(job_id, user_id=current_user_id) is None:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     local_job = get_job(job_id)
     if local_job is not None:
         return JobStatusResponse(
@@ -154,8 +176,10 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
     except Exception:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
 @router.get("/{job_id}/results", response_model=PipelineResult)
-async def get_job_results(job_id: str) -> Any:
+async def get_job_results(job_id: str, current_user_id: str = Depends(resolve_current_user_id)) -> Any:
     """Retrieve full pipeline results once job is COMPLETED."""
+    if get_persisted_run(job_id, user_id=current_user_id) is None:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     local_job = get_job(job_id)
     if local_job is not None:
         if local_job.status != JobStatus.completed.value or local_job.result is None:
@@ -173,8 +197,13 @@ async def get_job_results(job_id: str) -> Any:
     except Exception as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 @router.get("/{job_id}/video/{video_type}")
-async def get_video(job_id: str, video_type: str) -> FileResponse:
+async def get_video(
+    job_id: str,
+    video_type: str,
+    current_user_id: str = Depends(resolve_current_user_id),
+) -> FileResponse:
     """Stream the original or interpolated video file."""
+    _require_owned_run(job_id, current_user_id)
     if video_type not in ("original", "interpolated"):
         raise HTTPException(status_code=400, detail="video_type must be 'original' or 'interpolated'")
     video_path = settings.exports_dir / job_id / f"{video_type}.mp4"
@@ -182,15 +211,21 @@ async def get_video(job_id: str, video_type: str) -> FileResponse:
         raise HTTPException(status_code=404, detail=f"Video not found for job {job_id}")
     return FileResponse(str(video_path), media_type="video/mp4")
 @router.get("/{job_id}/frames/{frame_idx}")
-async def get_frame(job_id: str, frame_idx: int) -> FileResponse:
+async def get_frame(
+    job_id: str,
+    frame_idx: int,
+    current_user_id: str = Depends(resolve_current_user_id),
+) -> FileResponse:
     """Get a specific frame PNG from the output."""
+    _require_owned_run(job_id, current_user_id)
     frame_path = settings.exports_dir / job_id / "frames" / f"frame_{frame_idx:04d}.png"
     if not frame_path.exists():
         raise HTTPException(status_code=404, detail=f"Frame {frame_idx} not found")
     return FileResponse(str(frame_path), media_type="image/png")
 @router.get("/{job_id}/metadata")
-async def get_metadata(job_id: str) -> FileResponse:
+async def get_metadata(job_id: str, current_user_id: str = Depends(resolve_current_user_id)) -> FileResponse:
     """Download the frame metadata JSON sidecar."""
+    _require_owned_run(job_id, current_user_id)
     meta_path = settings.exports_dir / job_id / "metadata.json"
     if not meta_path.exists():
         raise HTTPException(status_code=404, detail=f"Metadata not found for job {job_id}")
@@ -198,8 +233,9 @@ async def get_metadata(job_id: str) -> FileResponse:
 
 
 @router.get("/{job_id}/report")
-async def get_html_report(job_id: str) -> HTMLResponse:
+async def get_html_report(job_id: str, current_user_id: str = Depends(resolve_current_user_id)) -> HTMLResponse:
     """Download the analytical HTML report for this job."""
+    _require_owned_run(job_id, current_user_id)
     local_job = get_job(job_id)
     result = None
     
@@ -281,8 +317,9 @@ async def get_html_report(job_id: str) -> HTMLResponse:
 
 
 @router.get("/{job_id}/zip")
-async def get_frames_zip(job_id: str) -> FileResponse:
+async def get_frames_zip(job_id: str, current_user_id: str = Depends(resolve_current_user_id)) -> FileResponse:
     """Download a ZIP archive of all frames for this job."""
+    _require_owned_run(job_id, current_user_id)
     import shutil
     from backend.app.services.persistence import upsert_run_artifacts
     
@@ -311,12 +348,14 @@ async def get_frames_zip(job_id: str) -> FileResponse:
 
 
 @router.post("/{job_id}/export/{video_type}")
-async def export_video(job_id: str, video_type: str) -> dict:
+async def export_video(job_id: str, video_type: str, current_user_id: str = Depends(resolve_current_user_id)) -> dict:
     """Generate an MP4 on-demand from saved frame PNGs.
 
     Idempotent: if the file already exists, returns immediately with the URL.
     video_type: 'original' | 'interpolated' | 'all'
     """
+    _require_owned_run(job_id, current_user_id)
+
     if video_type not in ("original", "interpolated", "all"):
         raise HTTPException(status_code=400, detail="video_type must be 'original', 'interpolated', or 'all'")
 
@@ -387,8 +426,13 @@ async def export_video(job_id: str, video_type: str) -> dict:
 
 
 @router.get("/{job_id}/export/{video_type}/status")
-async def export_video_status(job_id: str, video_type: str) -> dict:
+async def export_video_status(
+    job_id: str,
+    video_type: str,
+    current_user_id: str = Depends(resolve_current_user_id),
+) -> dict:
     """Check whether an exported video is ready without triggering generation."""
+    _require_owned_run(job_id, current_user_id)
     if video_type not in ("original", "interpolated", "all"):
         raise HTTPException(status_code=400, detail="video_type must be 'original', 'interpolated', or 'all'")
     video_path = settings.exports_dir / job_id / f"{video_type}.mp4"
@@ -398,8 +442,9 @@ async def export_video_status(job_id: str, video_type: str) -> dict:
     return {"status": "not_generated"}
 
 @router.post("/{job_id}/cancel")
-async def cancel_pipeline(job_id: str) -> dict[str, str]:
+async def cancel_pipeline(job_id: str, current_user_id: str = Depends(resolve_current_user_id)) -> dict[str, str]:
     """Cancel a running pipeline job."""
+    _require_owned_run(job_id, current_user_id)
     try:
         from backend.app.tasks.celery_app import celery_app
         celery_app.control.revoke(job_id, terminate=True, signal='SIGKILL')
@@ -413,7 +458,7 @@ async def cancel_pipeline(job_id: str) -> dict[str, str]:
 
 
 @router.delete("/{job_id}", status_code=200)
-async def delete_job(job_id: str) -> dict[str, str]:
+async def delete_job(job_id: str, current_user_id: str = Depends(resolve_current_user_id)) -> dict[str, str]:
     """Delete a pipeline job: removes export files from disk and purges from job store.
 
     Called by the frontend when a user deletes a session from the Session Manager.
@@ -429,6 +474,8 @@ async def delete_job(job_id: str) -> dict[str, str]:
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Invalid job_id format")
 
+    _require_owned_run(job_id, current_user_id)
+
     export_dir = settings.exports_dir / job_id
     deleted_disk = False
     if export_dir.exists():
@@ -438,6 +485,7 @@ async def delete_job(job_id: str) -> dict[str, str]:
 
     # Remove from in-process job store (best-effort — Celery jobs live in Redis)
     purge_job(job_id)
+    delete_persisted_run(job_id, user_id=current_user_id)
 
     return {
         "job_id": job_id,
@@ -447,7 +495,10 @@ async def delete_job(job_id: str) -> dict[str, str]:
 
 
 @router.delete("/cleanup/old", status_code=200)
-async def cleanup_old_jobs(keep_last: int = 20) -> dict:
+async def cleanup_old_jobs(
+    keep_last: int = 20,
+    current_user_id: str = Depends(resolve_current_user_id),
+) -> dict:
     """Delete export directories for all jobs except the most recent `keep_last`.
 
     Useful for freeing disk space. The front-end session limit is 20, so the
@@ -482,9 +533,29 @@ async def cleanup_old_jobs(keep_last: int = 20) -> dict:
         except Exception as exc:
             logger.warning("Failed to clean job dir", job_id=d.name, error=str(exc))
 
+    _ = current_user_id
+
     return {
         "deleted_count": len(deleted),
         "freed_mb": round(freed_bytes / 1_048_576, 1),
         "kept": keep_last,
         "deleted_job_ids": deleted,
+    }
+
+
+@router.post("/cleanup/expired", status_code=200)
+async def cleanup_expired_runs_endpoint(
+    limit: int = 500,
+    current_user_id: str = Depends(resolve_current_user_id),
+) -> dict:
+    """Delete runs and artifacts past their configured TTL."""
+    _ = current_user_id
+
+    if limit < 1 or limit > 5000:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 5000")
+
+    result = cleanup_expired_runs(limit=limit)
+    return {
+        "status": "ok",
+        **result,
     }

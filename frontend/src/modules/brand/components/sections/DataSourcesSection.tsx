@@ -1,17 +1,11 @@
 import React from "react";
 import { motion } from "motion/react";
 import { Cloud, Database, Info, Globe, Cpu, Radio } from "lucide-react";
+import { brandTransitions, fadeUpVariants, inViewOnce } from "@brand/motion";
 import "./DataSourcesSection.css";
 
 const DataSourcesSection: React.FC = () => {
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.8, ease: "easeOut" as any } 
-    },
-  };
+  const itemVariants = fadeUpVariants;
 
   return (
     <section className="brand-section data-sources-section">
@@ -20,18 +14,18 @@ const DataSourcesSection: React.FC = () => {
           
           {/* Left Column: Narrative + Visual */}
           <div className="sources-left">
-            <motion.div className="brand-hero-tag" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.div className="brand-hero-tag" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               <span className="brand-hero-tag-dot" />
               DATA SOURCES
             </motion.div>
 
-            <motion.h1 className="sources-title" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.h1 className="sources-title" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               Built on
               <br />
               <span className="sources-title-gradient">trusted satellite data.</span>
             </motion.h1>
 
-            <motion.p className="sources-description" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.p className="sources-description" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               AetherGIS integrates with globally recognized 
               satellite data sources.
             </motion.p>
@@ -41,8 +35,8 @@ const DataSourcesSection: React.FC = () => {
               initial="hidden"
               whileInView="visible"
               variants={itemVariants}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
+              viewport={inViewOnce}
+              transition={{ ...brandTransitions.base, delay: 0.2 }}
             >
               <div className="tech-spec-item">
                 <span className="spec-label">RESOLUTION</span>
@@ -78,7 +72,7 @@ const DataSourcesSection: React.FC = () => {
                 initial="hidden"
                 whileInView="visible"
                 variants={itemVariants}
-                viewport={{ once: true }}
+                viewport={inViewOnce}
               >
                 <div className="card-main-content">
                   <div className="logo-box nasa-logo">
@@ -111,8 +105,8 @@ const DataSourcesSection: React.FC = () => {
                   initial="hidden"
                   whileInView="visible"
                   variants={itemVariants}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.1 }}
+                  viewport={inViewOnce}
+                  transition={{ ...brandTransitions.base, delay: 0.1 }}
                 >
                   <div className="logo-box mosdac-logo">
                     <Cpu size={24} />
@@ -132,8 +126,8 @@ const DataSourcesSection: React.FC = () => {
                   initial="hidden"
                   whileInView="visible"
                   variants={itemVariants}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.2 }}
+                  viewport={inViewOnce}
+                  transition={{ ...brandTransitions.base, delay: 0.2 }}
                 >
                   <div className="logo-box isro-logo">
                     <Radio size={24} />
@@ -155,7 +149,7 @@ const DataSourcesSection: React.FC = () => {
               initial="hidden"
               whileInView="visible"
               variants={itemVariants}
-              viewport={{ once: true }}
+              viewport={inViewOnce}
             >
               <Info size={18} className="footer-pill-icon" />
               <p>

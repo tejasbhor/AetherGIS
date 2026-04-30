@@ -1,35 +1,19 @@
 import React from "react";
 import { motion } from "motion/react";
 import { Info, Clock, Layers, HelpCircle, BarChart3, Target, ChevronDown } from "lucide-react";
+import { brandTransitions, fadeUpVariants, inViewOnce, staggerContainerVariants } from "@brand/motion";
 import "./ProblemSection.css";
 
 const ProblemSection: React.FC = () => {
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.15,
-        delayChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.8, ease: "easeOut" as any } 
-    },
-  };
+  const containerVariants = staggerContainerVariants;
+  const itemVariants = fadeUpVariants;
 
   const drawLine = {
     hidden: { pathLength: 0, opacity: 0 },
     visible: {
       pathLength: 1,
       opacity: 1,
-      transition: { duration: 1.5, ease: "easeInOut" as any }
+      transition: { duration: 1.2, ease: brandTransitions.base.ease }
     }
   };
 
@@ -40,7 +24,7 @@ const ProblemSection: React.FC = () => {
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
+        viewport={inViewOnce}
       >
         <div className="problem-content-grid">
           {/* LEFT COLUMN: Narrative */}
@@ -73,26 +57,15 @@ const ProblemSection: React.FC = () => {
               </p>
             </motion.div>
 
-            <div className="problem-challenges-stack">
-              <motion.h3 className="challenges-eyebrow" variants={itemVariants}>KEY CHALLENGES</motion.h3>
-              
-              {[
-                { icon: <Clock size={20} />, title: "Temporal Gaps", desc: "Large intervals between observations hide rapid changes." },
-                { icon: <Layers size={20} />, title: "Discontinuous Narratives", desc: "Environmental events appear as disconnected snapshots." },
-                { icon: <HelpCircle size={20} />, title: "Interpretation Uncertainty", desc: "Analysts must guess what happened between frames." },
-                { icon: <BarChart3 size={20} />, title: "Limited Decision Support", desc: "Incomplete information leads to slower, less confident actions." }
-              ].map((item, idx) => (
-                <motion.div className="challenge-card" key={idx} variants={itemVariants}>
-                  <div className="challenge-card-icon">
-                    {item.icon}
-                  </div>
-                  <div className="challenge-card-body">
-                    <h4>{item.title}</h4>
-                    <p>{item.desc}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+            <motion.div className="visual-solution-pill" variants={itemVariants}>
+              <div className="solution-pill-icon">
+                <Target size={24} />
+              </div>
+              <p className="solution-pill-text">
+                AetherGIS is built to close this gap — transforming 
+                disconnected snapshots into <span className="highlight-cyan">continuous, interpretable motion.</span>
+              </p>
+            </motion.div>
           </div>
 
           {/* RIGHT COLUMN: Visual Diagram */}
@@ -159,18 +132,27 @@ const ProblemSection: React.FC = () => {
               </div>
             </motion.div>
 
-            <motion.div className="visual-down-indicator" variants={itemVariants}>
-              <ChevronDown size={32} strokeWidth={1.5} />
-            </motion.div>
-
-            <motion.div className="visual-solution-pill" variants={itemVariants}>
-              <div className="solution-pill-icon">
-                <Target size={24} />
+            <motion.div className="problem-challenges-card" variants={itemVariants}>
+              <h3 className="challenges-eyebrow">KEY CHALLENGES</h3>
+              
+              <div className="problem-challenges-grid">
+                {[
+                  { icon: <Clock size={18} />, title: "Temporal Gaps", desc: "Large intervals hide rapid changes." },
+                  { icon: <Layers size={18} />, title: "Discontinuous", desc: "Events appear as disconnected snapshots." },
+                  { icon: <HelpCircle size={18} />, title: "Uncertainty", desc: "Analysts must guess what happened." },
+                  { icon: <BarChart3 size={18} />, title: "Decision Delay", desc: "Incomplete info leads to slower actions." }
+                ].map((item, idx) => (
+                  <div className="challenge-grid-item" key={idx}>
+                    <div className="challenge-grid-icon">
+                      {item.icon}
+                    </div>
+                    <div className="challenge-grid-body">
+                      <h4>{item.title}</h4>
+                      <p>{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <p className="solution-pill-text">
-                AetherGIS is built to close this gap — transforming 
-                disconnected snapshots into <span className="highlight-cyan">continuous, interpretable motion.</span>
-              </p>
             </motion.div>
           </div>
         </div>

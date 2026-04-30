@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import type { SystemConfig } from '@shared/api/client';
 import { useAuth, useSystemConfig, getLoginUrl } from '@shared/api/client';
+import { GateLogo, GateTopNav, OrbitRings, StatusBadge } from '@shared/components/GatePrimitives';
 
 interface AuthGateProps {
   children: React.ReactNode;
@@ -18,57 +19,20 @@ const LOCAL_FALLBACK_CONFIG: SystemConfig = {
   },
 };
 
-/** Animated satellite orbit rings — purely decorative, aria-hidden */
-const OrbitRings: React.FC = () => (
-  <div className="ag-orbit-container" aria-hidden="true">
-    <div className="ag-orbit ag-orbit-1" />
-    <div className="ag-orbit ag-orbit-2" />
-    <div className="ag-orbit ag-orbit-3" />
-    <div className="ag-orbit-dot ag-orbit-dot-1" />
-    <div className="ag-orbit-dot ag-orbit-dot-2" />
-  </div>
-);
-
-/** Reusable logo lockup */
-const Logo: React.FC = () => (
-  <div className="ag-logo" role="img" aria-label="AetherGIS">
-    <svg className="ag-logo-icon" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <circle cx="24" cy="24" r="20" stroke="url(#ag-grad)" strokeWidth="1.5" opacity="0.6" />
-      <circle cx="24" cy="24" r="12" stroke="url(#ag-grad)" strokeWidth="1.5" opacity="0.9" />
-      <circle cx="24" cy="24" r="4"  fill="url(#ag-grad)" />
-      <ellipse cx="24" cy="24" rx="20" ry="8"  stroke="url(#ag-grad)" strokeWidth="1" opacity="0.4" />
-      <ellipse cx="24" cy="24" rx="20" ry="14" stroke="url(#ag-grad)" strokeWidth="1" opacity="0.25" />
-      <defs>
-        <linearGradient id="ag-grad" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#60a5fa" />
-          <stop offset="100%" stopColor="#2fd67c" />
-        </linearGradient>
-      </defs>
-    </svg>
-    <div className="ag-logo-text">
-      <span className="ag-logo-name">AetherGIS</span>
-      <span className="ag-logo-tagline">GeoAI Intelligence Platform</span>
-    </div>
-  </div>
-);
-
-/** Status badge pill */
-const StatusBadge: React.FC<{ label: string; variant?: 'default' | 'warning' | 'error' }> = ({
-  label,
-  variant = 'default',
-}) => (
-  <div className={`ag-status-badge ag-status-badge--${variant}`} role="status">
-    <span className="ag-status-dot" aria-hidden="true" />
-    {label}
-  </div>
-);
-
 const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
   const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
   const { data: config, isLoading: configLoading } = useSystemConfig();
   const resolvedConfig = config ?? (isLocalHost ? LOCAL_FALLBACK_CONFIG : null);
   const requiresAuth = !!resolvedConfig && (resolvedConfig.features.auth || resolvedConfig.is_dev_preview);
   const { data: auth, isLoading: authLoading } = useAuth();
+
+  const goToAccess = () => {
+    window.location.assign('/access');
+  };
+
+  const goToSignIn = () => {
+    window.location.assign(getLoginUrl());
+  };
 
   useEffect(() => {
     if (!resolvedConfig || configLoading || authLoading || !requiresAuth) return;
@@ -88,9 +52,11 @@ const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
           <div className="ag-gate-bg-grid" />
         </div>
 
+        <GateTopNav onPrimaryAction={goToAccess} onSecondaryAction={goToSignIn} />
+
         <div className="ag-gate-card">
           <OrbitRings />
-          <Logo />
+          <GateLogo gradientId="ag-auth-grad-loading" />
 
           <div className="ag-gate-divider" aria-hidden="true" />
 
@@ -132,8 +98,10 @@ const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
           <div className="ag-gate-bg-grid" />
         </div>
 
+        <GateTopNav onPrimaryAction={goToAccess} onSecondaryAction={goToSignIn} />
+
         <div className="ag-gate-card ag-gate-card--error">
-          <Logo />
+          <GateLogo gradientId="ag-auth-grad-error" />
           <div className="ag-gate-divider" aria-hidden="true" />
 
           <div className="ag-gate-error-icon" aria-hidden="true">
@@ -179,9 +147,11 @@ const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
           <div className="ag-gate-bg-grid" />
         </div>
 
+        <GateTopNav onPrimaryAction={goToAccess} onSecondaryAction={goToSignIn} />
+
         <div className="ag-gate-card">
           <OrbitRings />
-          <Logo />
+          <GateLogo gradientId="ag-auth-grad-redirect" />
           <div className="ag-gate-divider" aria-hidden="true" />
 
           <div className="ag-gate-loader-wrap">

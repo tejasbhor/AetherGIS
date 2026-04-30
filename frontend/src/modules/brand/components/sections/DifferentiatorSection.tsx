@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
+import { brandTransitions, fadeUpVariants, inViewOnce } from "@brand/motion";
 import { 
   Zap, 
   Clock, 
@@ -12,14 +13,7 @@ import {
 import "./DifferentiatorSection.css";
 
 const DifferentiatorSection: React.FC = () => {
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.8, ease: "easeOut" as any } 
-    },
-  };
+  const itemVariants = fadeUpVariants;
 
   return (
     <section className="brand-section differentiator-section">
@@ -28,18 +22,18 @@ const DifferentiatorSection: React.FC = () => {
           
           {/* LEFT: Narrative */}
           <div className="diff-narrative">
-            <motion.div className="brand-hero-tag" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.div className="brand-hero-tag" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               <span className="brand-hero-tag-dot" />
               CORE DIFFERENTIATOR
             </motion.div>
 
-            <motion.h1 className="diff-title" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.h1 className="diff-title" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               Not just interpolation.
               <br />
               <span className="diff-title-gradient">Controlled interpolation.</span>
             </motion.h1>
 
-            <motion.p className="diff-description" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.p className="diff-description" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               Unlike conventional approaches, AetherGIS does not treat all generated 
               frames as equally reliable. Every interpolated frame undergoes a 
               <span className="text-highlight-blue"> multi-layer validation process</span> before being presented.
@@ -52,7 +46,7 @@ const DifferentiatorSection: React.FC = () => {
                 { icon: <Grid size={18} />, title: "Pixel-level difference analysis", desc: "Compares generated frames against adjacent observations." },
                 { icon: <ShieldCheck size={18} />, title: "Confidence scoring and classification", desc: "Each frame is scored and classified based on metrics." }
               ].map((item, idx) => (
-                <motion.div className="diff-feature-item" key={idx} initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}>
+                <motion.div className="diff-feature-item" key={idx} initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce} transition={{ ...brandTransitions.base, delay: idx * 0.08 }}>
                   <div className="diff-feature-icon">{item.icon}</div>
                   <div className="diff-feature-text">
                     <h4>{item.title}</h4>
@@ -62,7 +56,7 @@ const DifferentiatorSection: React.FC = () => {
               ))}
             </div>
 
-            <motion.div className="diff-summary-box" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.div className="diff-summary-box" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               <p>
                 Frames are categorized as <span className="conf-high">High</span>, <span className="conf-med">Medium</span>, or <span className="conf-low">Low</span> confidence — ensuring that users can distinguish 
                 between reliable approximations and uncertain outputs.
@@ -72,7 +66,7 @@ const DifferentiatorSection: React.FC = () => {
 
           {/* RIGHT: Pipeline Diagram */}
           <div className="diff-visualization">
-            <motion.div className="pipeline-card" initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} transition={{ duration: 1 }} viewport={{ once: true }}>
+            <motion.div className="pipeline-card" initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} transition={brandTransitions.slow} viewport={inViewOnce}>
               <h4 className="pipeline-title">Our Validation Pipeline</h4>
               
               <div className="pipeline-flow">
@@ -112,7 +106,7 @@ const DifferentiatorSection: React.FC = () => {
                       <div className="val-visual gauge-box">
                         <svg viewBox="0 0 36 36" className="circular-chart">
                           <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                          <motion.path className="circle" strokeDasharray="86, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} transition={{ duration: 1.5 }} />
+                          <motion.path className="circle" strokeDasharray="86, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} transition={brandTransitions.slow} />
                           <text x="18" y="20.35" className="percentage">86%</text>
                         </svg>
                       </div>
@@ -146,7 +140,7 @@ const DifferentiatorSection: React.FC = () => {
 
             {/* Confidence Levels */}
             <div className="confidence-levels-grid">
-              <motion.div className="conf-card high" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+              <motion.div className="conf-card high" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
                 <div className="conf-card-header">
                   <span className="dot-pass"></span> HIGH CONFIDENCE
                 </div>
@@ -159,7 +153,7 @@ const DifferentiatorSection: React.FC = () => {
                 </div>
               </motion.div>
 
-              <motion.div className="conf-card med" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }} transition={{ delay: 0.1 }}>
+              <motion.div className="conf-card med" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce} transition={{ ...brandTransitions.base, delay: 0.1 }}>
                 <div className="conf-card-header">
                   <span className="dot-warn"></span> MEDIUM CONFIDENCE
                 </div>
@@ -172,7 +166,7 @@ const DifferentiatorSection: React.FC = () => {
                 </div>
               </motion.div>
 
-              <motion.div className="conf-card low" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }} transition={{ delay: 0.2 }}>
+              <motion.div className="conf-card low" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce} transition={{ ...brandTransitions.base, delay: 0.2 }}>
                 <div className="conf-card-header">
                   <span className="dot-fail"></span> LOW CONFIDENCE
                 </div>
@@ -186,7 +180,7 @@ const DifferentiatorSection: React.FC = () => {
               </motion.div>
             </div>
 
-            <motion.div className="diff-bottom-pill" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.div className="diff-bottom-pill" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               <div className="bottom-pill-icon"><Target size={20} /></div>
               <p>This accuracy-aware approach prioritizes <span className="highlight-cyan">transparency over visual smoothness.</span></p>
             </motion.div>

@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
+import { brandTransitions, fadeUpVariants, inViewOnce } from "@brand/motion";
 import { 
   User, 
   Users, 
@@ -14,14 +15,7 @@ import {
 import "./AccessModelSection.css";
 
 const AccessModelSection: React.FC = () => {
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.8, ease: "easeOut" as any } 
-    },
-  };
+  const itemVariants = fadeUpVariants;
 
   return (
     <section className="brand-section access-model-section">
@@ -30,18 +24,18 @@ const AccessModelSection: React.FC = () => {
           
           {/* LEFT: Narrative */}
           <div className="access-narrative">
-            <motion.div className="brand-hero-tag" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.div className="brand-hero-tag" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               <span className="brand-hero-tag-dot" />
               ACCESS MODEL
             </motion.div>
 
-            <motion.h1 className="access-title" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.h1 className="access-title" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               Engineered for
               <br />
               <span className="access-title-gradient">performance and stability.</span>
             </motion.h1>
 
-            <motion.p className="access-description" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.p className="access-description" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               AetherGIS uses a controlled access model to ensure 
               consistent system performance and resource availability.
             </motion.p>
@@ -52,7 +46,7 @@ const AccessModelSection: React.FC = () => {
                 { icon: <LayoutList size={18} />, title: "Queue-based user access", desc: "Users are placed in a secure queue and granted access in order." },
                 { icon: <Clock size={18} />, title: "Dedicated processing window per session", desc: "Each session gets a fixed time window for uninterrupted processing." }
               ].map((item, idx) => (
-                <motion.div className="access-feature-item" key={idx} initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}>
+                <motion.div className="access-feature-item" key={idx} initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce} transition={{ ...brandTransitions.base, delay: idx * 0.08 }}>
                   <div className="access-feature-icon">{item.icon}</div>
                   <div className="access-feature-text">
                     <h4>{item.title}</h4>
@@ -62,7 +56,7 @@ const AccessModelSection: React.FC = () => {
               ))}
             </div>
 
-            <motion.div className="access-summary-box" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.div className="access-summary-box" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               <div className="summary-icon-box"><ShieldCheck size={20} /></div>
               <p>
                 This approach prevents resource contention, ensures <span className="highlight-cyan">reliable AI inference</span>, and delivers stable results for every user.
@@ -73,7 +67,7 @@ const AccessModelSection: React.FC = () => {
           {/* RIGHT: System Visualization */}
           <div className="access-visualization">
             
-            <motion.div className="how-it-works-card" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} viewport={{ once: true }}>
+            <motion.div className="how-it-works-card" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={brandTransitions.slow} viewport={inViewOnce}>
               <h4 className="works-title">HOW IT WORKS</h4>
               
               <div className="works-flow">
@@ -118,7 +112,7 @@ const AccessModelSection: React.FC = () => {
                       <div className="session-avatar"><User size={32} /></div>
                       <svg viewBox="0 0 100 100" className="session-ring">
                         <circle cx="50" cy="50" r="48" className="ring-bg" />
-                        <motion.circle cx="50" cy="50" r="48" className="ring-fill" initial={{ pathLength: 0 }} whileInView={{ pathLength: 0.72 }} transition={{ duration: 2, ease: "easeInOut" as any }} />
+                        <motion.circle cx="50" cy="50" r="48" className="ring-fill" initial={{ pathLength: 0 }} whileInView={{ pathLength: 0.72 }} transition={brandTransitions.slow} />
                       </svg>
                     </div>
                     <div className="session-user-info">
@@ -132,7 +126,7 @@ const AccessModelSection: React.FC = () => {
                       <strong>72%</strong>
                     </div>
                     <div className="progress-bar-bg">
-                      <motion.div className="progress-bar-fill" initial={{ width: 0 }} whileInView={{ width: "72%" }} transition={{ duration: 2, ease: "easeInOut" as any }} />
+                      <motion.div className="progress-bar-fill" initial={{ width: 0 }} whileInView={{ width: "72%" }} transition={brandTransitions.slow} />
                     </div>
                     <div className="session-eta">
                       <span>Estimated time remaining</span>
@@ -174,7 +168,7 @@ const AccessModelSection: React.FC = () => {
                 { icon: <Users size={20} />, label: "Access", value: "Fair", desc: "Everyone gets equal opportunity", color: "cyan" },
                 { icon: <Lock size={20} />, label: "Environment", value: "Secure", desc: "Sessions are isolated and monitored", color: "green" }
               ].map((card, idx) => (
-                <motion.div className={`metric-card ${card.color}`} key={idx} initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }} transition={{ delay: 0.1 * idx }}>
+                <motion.div className={`metric-card ${card.color}`} key={idx} initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce} transition={{ ...brandTransitions.base, delay: 0.1 * idx }}>
                   <div className="metric-header">
                     <div className="metric-icon">{card.icon}</div>
                     <div className="metric-text">
@@ -187,7 +181,7 @@ const AccessModelSection: React.FC = () => {
               ))}
             </div>
 
-            <motion.div className="access-final-banner" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.div className="access-final-banner" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               <div className="banner-left">
                 <Database size={20} className="banner-db-icon" />
                 <p>Controlled access. Maximum performance. Reliable results.</p>

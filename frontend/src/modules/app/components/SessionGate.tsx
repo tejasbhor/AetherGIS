@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiClient, useSystemConfig, type SystemConfig } from '@shared/api/client';
+import { GateLogo, GateTopNav, OrbitRings, StatusBadge } from '@shared/components/GatePrimitives';
 import { useStore } from '@app/store/useStore';
 import { useSessionGuard } from '@shared/hooks/useSessionGuard';
 
@@ -24,51 +25,6 @@ const LOCAL_FALLBACK_CONFIG: SystemConfig = {
 // Queued users poll this fast so handover completes within 3–6 s of lock expiry.
 const QUEUE_POLL_MS = 3000;
 
-/** Animated satellite orbit rings */
-const OrbitRings: React.FC = () => (
-  <div className="ag-orbit-container" aria-hidden="true">
-    <div className="ag-orbit ag-orbit-1" />
-    <div className="ag-orbit ag-orbit-2" />
-    <div className="ag-orbit ag-orbit-3" />
-    <div className="ag-orbit-dot ag-orbit-dot-1" />
-    <div className="ag-orbit-dot ag-orbit-dot-2" />
-  </div>
-);
-
-/** Logo lockup */
-const Logo: React.FC = () => (
-  <div className="ag-logo" role="img" aria-label="AetherGIS">
-    <svg className="ag-logo-icon" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <circle cx="24" cy="24" r="20" stroke="url(#sg-grad)" strokeWidth="1.5" opacity="0.6" />
-      <circle cx="24" cy="24" r="12" stroke="url(#sg-grad)" strokeWidth="1.5" opacity="0.9" />
-      <circle cx="24" cy="24" r="4"  fill="url(#sg-grad)" />
-      <ellipse cx="24" cy="24" rx="20" ry="8"  stroke="url(#sg-grad)" strokeWidth="1" opacity="0.4" />
-      <ellipse cx="24" cy="24" rx="20" ry="14" stroke="url(#sg-grad)" strokeWidth="1" opacity="0.25" />
-      <defs>
-        <linearGradient id="sg-grad" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#60a5fa" />
-          <stop offset="100%" stopColor="#2fd67c" />
-        </linearGradient>
-      </defs>
-    </svg>
-    <div className="ag-logo-text">
-      <span className="ag-logo-name">AetherGIS</span>
-      <span className="ag-logo-tagline">GeoAI Intelligence Platform</span>
-    </div>
-  </div>
-);
-
-/** Status badge */
-const StatusBadge: React.FC<{ label: string; variant?: 'default' | 'warning' | 'error' }> = ({
-  label,
-  variant = 'default',
-}) => (
-  <div className={`ag-status-badge ag-status-badge--${variant}`} role="status">
-    <span className="ag-status-dot" aria-hidden="true" />
-    {label}
-  </div>
-);
-
 /** Queue position progress track */
 const QueueTrack: React.FC<{ position: number; total?: number }> = ({ position, total = 5 }) => {
   const filled = Math.max(0, total - position);
@@ -91,54 +47,25 @@ const IdleWarningOverlay: React.FC<{
   onDismiss: () => void;
 }> = ({ countdownSec, onDismiss }) => (
   <div
-    style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 10000,
-      background: 'rgba(2,8,22,0.88)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backdropFilter: 'blur(6px)',
-    }}
+    className="ag-idle-overlay"
     role="alertdialog"
     aria-modal="true"
     aria-label="Session idle timeout warning"
     aria-describedby="idle-warn-desc"
   >
-    <div style={{
-      background: 'linear-gradient(135deg, rgba(10,20,50,0.98) 0%, rgba(5,12,30,0.98) 100%)',
-      border: '1px solid rgba(245,158,11,0.4)',
-      borderRadius: 16,
-      padding: '36px 40px',
-      maxWidth: 420,
-      textAlign: 'center',
-      boxShadow: '0 0 60px rgba(245,158,11,0.15)',
-    }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>⏱</div>
-      <h2 style={{ color: '#f59e0b', fontFamily: 'var(--cond)', fontSize: 22, marginBottom: 8 }}>
-        Session Idle Warning
-      </h2>
-      <p id="idle-warn-desc" style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+    <div className="ag-idle-card">
+      <div className="ag-idle-icon" aria-hidden="true">⏱</div>
+      <h2 className="ag-idle-title">Session Idle Warning</h2>
+      <p id="idle-warn-desc" className="ag-idle-copy">
         No activity detected. Your session will be automatically released and given to the next user in{' '}
-        <strong style={{ color: '#f59e0b' }}>{countdownSec} second{countdownSec !== 1 ? 's' : ''}</strong>.
+        <strong className="ag-idle-countdown">{countdownSec} second{countdownSec !== 1 ? 's' : ''}</strong>.
       </p>
-      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 24 }}>
+      <p className="ag-idle-note">
         Move your mouse, press a key, or click below to stay active.
       </p>
       <button
         onClick={onDismiss}
-        style={{
-          background: 'linear-gradient(90deg, #f59e0b, #d97706)',
-          border: 'none',
-          borderRadius: 8,
-          padding: '10px 28px',
-          color: '#000',
-          fontWeight: 700,
-          fontSize: 14,
-          cursor: 'pointer',
-          letterSpacing: '0.04em',
-        }}
+        className="ag-idle-action"
         autoFocus
       >
         I'm Still Here
@@ -160,6 +87,14 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
   const [activeUserHint, setActiveUserHint] = useState('');
   const [pollCount, setPollCount]       = useState(0);
   const [secondsUntilNext, setSecondsUntilNext] = useState(QUEUE_POLL_MS / 1000);
+
+  const goToAccess = () => {
+    window.location.assign('/access');
+  };
+
+  const goToSite = () => {
+    window.location.assign('/');
+  };
 
   const forceQueuePreview = useMemo(() => {
     if (!resolvedConfig?.is_dev_preview) return false;
@@ -256,9 +191,15 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
           <div className="ag-gate-bg-grid" />
         </div>
 
+        <GateTopNav
+          onPrimaryAction={goToAccess}
+          onSecondaryAction={goToSite}
+          secondaryLabel="Back to Site"
+        />
+
         <div className="ag-gate-card">
           <OrbitRings />
-          <Logo />
+          <GateLogo gradientId="ag-session-grad-loading" />
           <div className="ag-gate-divider" aria-hidden="true" />
 
           <div className="ag-gate-loader-wrap" aria-busy="true">
@@ -298,8 +239,14 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
           <div className="ag-gate-bg-grid" />
         </div>
 
+        <GateTopNav
+          onPrimaryAction={goToAccess}
+          onSecondaryAction={goToSite}
+          secondaryLabel="Back to Site"
+        />
+
         <div className="ag-gate-card ag-gate-card--error">
-          <Logo />
+          <GateLogo gradientId="ag-session-grad-config" />
           <div className="ag-gate-divider" aria-hidden="true" />
 
           <div className="ag-gate-error-icon" aria-hidden="true">
@@ -341,8 +288,14 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
           <div className="ag-gate-bg-grid" />
         </div>
 
+        <GateTopNav
+          onPrimaryAction={goToAccess}
+          onSecondaryAction={goToSite}
+          secondaryLabel="Back to Site"
+        />
+
         <div className="ag-gate-card ag-gate-card--queue">
-          <Logo />
+          <GateLogo gradientId="ag-session-grad-queue" />
           <div className="ag-gate-divider" aria-hidden="true" />
 
           {/* Queue icon */}
@@ -416,8 +369,14 @@ const SessionGate: React.FC<SessionGateProps> = ({ children }) => {
           <div className="ag-gate-bg-grid" />
         </div>
 
+        <GateTopNav
+          onPrimaryAction={goToAccess}
+          onSecondaryAction={goToSite}
+          secondaryLabel="Back to Site"
+        />
+
         <div className="ag-gate-card ag-gate-card--error">
-          <Logo />
+          <GateLogo gradientId="ag-session-grad-error" />
           <div className="ag-gate-divider" aria-hidden="true" />
 
           <div className="ag-gate-error-icon" aria-hidden="true">

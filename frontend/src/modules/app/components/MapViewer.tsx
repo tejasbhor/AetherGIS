@@ -171,6 +171,7 @@ export default function MapViewer() {
   const domainSource = useRef<VectorSource | null>(null);
   const overlayLayer = useRef<ImageLayer<Static> | null>(null);
   const baseLayerRef = useRef<TileLayer | null>(null);
+  const lastFocusedRunRef = useRef<string | null>(null);
 
   // Base layer state: 'osm' | 'satellite'
   const [baseLayerType, setBaseLayerType] = useState<'osm' | 'satellite'>('osm');
@@ -184,6 +185,7 @@ export default function MapViewer() {
     setSelectedPresetKey,
     pipelineResult,
     currentFrameIndex,
+    playbackSpeed,
     showMetadataOverlay,
     setShowMetadataOverlay,
   } = useStore();
@@ -199,6 +201,7 @@ export default function MapViewer() {
     pipelineResult?.job_id ?? null,
     pipelineResult?.frames.length ?? 0,
     currentFrameIndex,
+    playbackSpeed,
   );
 
   const selectedLayerInfo = layers.find((layer) => layer.layer_id === selectedLayer) ?? null;
@@ -351,6 +354,15 @@ export default function MapViewer() {
       });
     }
   }, [selectedLayerInfo]);
+
+  useEffect(() => {
+    if (!mapInstance.current || !pipelineResult?.bbox || !pipelineResult?.job_id) return;
+    if (lastFocusedRunRef.current === pipelineResult.job_id) return;
+
+    const { center, zoom } = fitExtentFromBbox(pipelineResult.bbox);
+    mapInstance.current.getView().animate({ center, zoom, duration: 700 });
+    lastFocusedRunRef.current = pipelineResult.job_id;
+  }, [pipelineResult?.job_id, pipelineResult?.bbox]);
 
   useEffect(() => {
     if (!overlayLayer.current || !pipelineResult || pipelineResult.frames.length === 0 || !pipelineResult.bbox) {

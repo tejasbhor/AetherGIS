@@ -1,6 +1,7 @@
 """AetherGIS - Authentication Routes (Google OAuth)."""
 from __future__ import annotations
 
+import hashlib
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Request
@@ -104,12 +105,14 @@ async def get_me(request: Request):
     # Production mode or development without mock token requires valid session
     if not session:
         return {"authenticated": False}
+
+    user_fingerprint = hashlib.sha256(session.encode("utf-8")).hexdigest()[:12]
     
     # In production with real tokens, verify with Google
     # For now, we accept any non-empty session cookie as valid (improve with JWT/OAuth verification)
     return {
         "authenticated": True, 
-        "user": "authorized_user",
+        "user": f"user_{user_fingerprint}",
         "mode": settings.aether_mode
     }
 

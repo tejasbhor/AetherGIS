@@ -51,6 +51,14 @@ def _to_datetime(value: Any) -> datetime:
     raise ValueError(f"Unsupported datetime value: {value!r}")
 
 
+def _can_access_owner(record_user_id: str | None, requested_user_id: str | None) -> bool:
+    if not requested_user_id:
+        return True
+    if record_user_id == requested_user_id:
+        return True
+    return settings.aether_mode != "production" and record_user_id is None
+
+
 def ensure_demo_session(provider_default: str = "nasa_gibs", name: str = "Demo Workspace") -> SessionRecord:
     with session_scope() as db:
         session = db.get(SessionRecord, DEMO_SESSION_ID)
@@ -83,10 +91,34 @@ def create_session(name: str, provider_default: str = "nasa_gibs", user_id: str 
         return serialize_session(record, db)
 
 
-def rename_session(session_id: str, name: str) -> Optional[dict[str, Any]]:
+def _ensure_personal_session(db: Session, *, user_id: str, provider_default: str, session_name: str | None = None) -> str:
+    stmt = (
+        select(SessionRecord)
+        .where(SessionRecord.user_id == user_id)
+        .where(SessionRecord.archived_at.is_(None))
+        .order_by(SessionRecord.updated_at.desc())
+    )
+    existing = db.scalars(stmt).first()
+    if existing is not None:
+        return existing.id
+
+    record = SessionRecord(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        name=(session_name or "My Workspace").strip() or "My Workspace",
+        provider_default=provider_default,
+    )
+    db.add(record)
+    db.flush()
+    return record.id
+
+
+def rename_session(session_id: str, name: str, user_id: str | None = None) -> Optional[dict[str, Any]]:
     with session_scope() as db:
         record = db.get(SessionRecord, session_id)
         if record is None:
+            return None
+        if user_id and not _can_access_owner(record.user_id, user_id):
             return None
         record.name = name.strip() or record.name
         record.updated_at = _utcnow()
@@ -95,10 +127,12 @@ def rename_session(session_id: str, name: str) -> Optional[dict[str, Any]]:
         return serialize_session(record, db)
 
 
-def archive_session(session_id: str) -> bool:
+def archive_session(session_id: str, user_id: str | None = None) -> bool:
     with session_scope() as db:
         record = db.get(SessionRecord, session_id)
         if record is None:
+            return False
+        if user_id and not _can_access_owner(record.user_id, user_id):
             return False
         record.archived_at = _utcnow()
         record.updated_at = _utcnow()
@@ -106,21 +140,23 @@ def archive_session(session_id: str) -> bool:
         return True
 
 
-def get_session(session_id: str) -> Optional[dict[str, Any]]:
+def get_session(session_id: str, user_id: str | None = None) -> Optional[dict[str, Any]]:
     with session_scope() as db:
         record = db.get(SessionRecord, session_id)
         if record is None:
             return None
+        if user_id and not _can_access_owner(record.user_id, user_id):
+            return None
         return serialize_session(record, db)
 
 
-def list_sessions(include_archived: bool = False) -> list[dict[str, Any]]:
+def list_sessions(include_archived: bool = False, user_id: str | None = None) -> list[dict[str, Any]]:
     with session_scope() as db:
         stmt = select(SessionRecord).order_by(SessionRecord.updated_at.desc())
         if not include_archived:
             stmt = stmt.where(SessionRecord.archived_at.is_(None))
         records = db.scalars(stmt).all()
-        return [serialize_session(record, db) for record in records]
+        return [serialize_session(record, db) for record in records if _can_access_owner(record.user_id, user_id)]
 
 
 def serialize_session(record: SessionRecord, db: Session) -> dict[str, Any]:
@@ -149,15 +185,29 @@ def create_run(
     session_name: str | None = None,
     user_id: str | None = None,
 ) -> dict[str, Any]:
-    target_session_id = session_id
-    if target_session_id is None:
-        target_session_id = DEMO_SESSION_ID
-        ensure_demo_session(provider_default=payload.get("data_source", "nasa_gibs"), name=session_name or "Demo Workspace")
-    elif session_name:
-        rename_session(target_session_id, session_name)
-
     expires_at = _utcnow() + timedelta(hours=settings.run_artifact_ttl_hours)
     with session_scope() as db:
+        target_session_id = session_id
+        if target_session_id is None:
+            if user_id:
+                target_session_id = _ensure_personal_session(
+                    db,
+                    user_id=user_id,
+                    provider_default=payload.get("data_source", "nasa_gibs"),
+                    session_name=session_name,
+                )
+            else:
+                target_session_id = DEMO_SESSION_ID
+                ensure_demo_session(provider_default=payload.get("data_source", "nasa_gibs"), name=session_name or "Demo Workspace")
+
+        session_record = db.get(SessionRecord, target_session_id)
+        if session_record is None:
+            raise ValueError(f"Session {target_session_id} not found")
+        if user_id and not _can_access_owner(session_record.user_id, user_id):
+            raise ValueError("Session ownership mismatch")
+        if session_name and session_record.name != session_name:
+            session_record.name = session_name.strip() or session_record.name
+
         run = db.get(RunRecord, job_id)
         if run is None:
             run = RunRecord(
@@ -199,10 +249,8 @@ def create_run(
             run.expires_at = expires_at
             db.add(run)
 
-        session_record = db.get(SessionRecord, target_session_id)
-        if session_record:
-            session_record.updated_at = _utcnow()
-            db.add(session_record)
+        session_record.updated_at = _utcnow()
+        db.add(session_record)
 
         db.flush()
         return serialize_run(run)
@@ -256,27 +304,31 @@ def update_run_state(
         return serialize_run(run)
 
 
-def get_run(job_id: str) -> Optional[dict[str, Any]]:
+def get_run(job_id: str, user_id: str | None = None) -> Optional[dict[str, Any]]:
     with session_scope() as db:
         run = db.get(RunRecord, job_id)
         if run is None:
             return None
+        if user_id and not _can_access_owner(run.user_id, user_id):
+            return None
         return serialize_run(run)
 
 
-def list_runs(session_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+def list_runs(session_id: str | None = None, limit: int = 50, user_id: str | None = None) -> list[dict[str, Any]]:
     with session_scope() as db:
         stmt = select(RunRecord).order_by(RunRecord.created_at.desc()).limit(limit)
         if session_id:
             stmt = stmt.where(RunRecord.session_id == session_id)
         runs = db.scalars(stmt).all()
-        return [serialize_run(run) for run in runs]
+        return [serialize_run(run) for run in runs if _can_access_owner(run.user_id, user_id)]
 
 
-def delete_run(job_id: str) -> bool:
+def delete_run(job_id: str, user_id: str | None = None) -> bool:
     with session_scope() as db:
         run = db.get(RunRecord, job_id)
         if run is None:
+            return False
+        if user_id and not _can_access_owner(run.user_id, user_id):
             return False
         db.delete(run)
         return True
@@ -364,4 +416,59 @@ def serialize_artifact(artifact: ArtifactRecord) -> dict[str, Any]:
         "checksum": artifact.checksum,
         "created_at": artifact.created_at.isoformat(),
         "expires_at": artifact.expires_at.isoformat() if artifact.expires_at else None,
+    }
+
+
+def cleanup_expired_runs(limit: int = 500) -> dict[str, int]:
+    """Delete expired run rows and associated on-disk artifacts."""
+    now = _utcnow()
+    deleted_runs = 0
+    deleted_files = 0
+    deleted_dirs = 0
+
+    with session_scope() as db:
+        stmt = (
+            select(RunRecord)
+            .where(RunRecord.expires_at.is_not(None))
+            .where(RunRecord.expires_at <= now)
+            .order_by(RunRecord.expires_at.asc())
+            .limit(limit)
+        )
+        runs = db.scalars(stmt).all()
+
+        for run in runs:
+            for artifact in run.artifacts:
+                path = Path(artifact.file_path)
+                try:
+                    if path.exists() and path.is_file():
+                        path.unlink(missing_ok=True)
+                        deleted_files += 1
+                except Exception as exc:
+                    logger.warning("Failed to delete expired artifact file", run_id=run.id, path=str(path), error=str(exc))
+
+            export_dir = settings.exports_dir / run.id
+            try:
+                if export_dir.exists() and export_dir.is_dir():
+                    import shutil
+
+                    shutil.rmtree(export_dir, ignore_errors=True)
+                    deleted_dirs += 1
+            except Exception as exc:
+                logger.warning("Failed to delete expired export directory", run_id=run.id, path=str(export_dir), error=str(exc))
+
+            db.delete(run)
+            deleted_runs += 1
+
+    if deleted_runs:
+        logger.info(
+            "Expired run cleanup completed",
+            deleted_runs=deleted_runs,
+            deleted_files=deleted_files,
+            deleted_dirs=deleted_dirs,
+        )
+
+    return {
+        "deleted_runs": deleted_runs,
+        "deleted_files": deleted_files,
+        "deleted_dirs": deleted_dirs,
     }

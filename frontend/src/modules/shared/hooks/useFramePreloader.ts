@@ -23,13 +23,25 @@
  */
 import { useEffect, useRef, useCallback } from 'react';
 
-const AHEAD  = 12;  // frames ahead to preload
-const BEHIND = 4;   // frames back to keep for scrubbing
+const CACHE_NAME = 'aethergis-frames-v1';
+const AHEAD_BASE = 18;
+const BEHIND_BASE = 8;
+const MAX_CONCURRENT_FETCHES = 4;
+const supportsPersistentCache = typeof window !== 'undefined' && 'caches' in window;
+
+function getWindowSize(playbackSpeed: number) {
+  const speedFactor = playbackSpeed >= 4 ? 1.8 : playbackSpeed >= 2 ? 1.35 : playbackSpeed <= 0.5 ? 0.9 : 1;
+  return {
+    ahead: Math.max(10, Math.round(AHEAD_BASE * speedFactor)),
+    behind: Math.max(4, Math.round(BEHIND_BASE * speedFactor)),
+  };
+}
 
 export function useFramePreloader(
   jobId: string | null,
   totalFrames: number,
   currentFrameIndex: number,
+  playbackSpeed: 0.5 | 1 | 2 | 4 = 1,
 ) {
   // Map<frameIndex, blobUrl>
   const cacheRef = useRef(new Map<number, string>());
@@ -39,6 +51,7 @@ export function useFramePreloader(
   const abortControllersRef = useRef(new Map<number, AbortController>());
   // Track the last jobId so we can flush on job change
   const lastJobIdRef = useRef<string | null>(null);
+  const inflightGlobalRef = useRef(0);
 
   /** Revoke and evict a single frame from cache */
   const evict = useCallback((idx: number) => {
@@ -63,22 +76,57 @@ export function useFramePreloader(
     abortControllersRef.current.clear();
   }, [evict]);
 
+  const frameRequest = useCallback((activeJobId: string, idx: number) => {
+    return new Request(`/api/v1/pipeline/${activeJobId}/frames/${idx}`);
+  }, []);
+
+  const trimPersistentCache = useCallback(async (activeJobId: string) => {
+    if (!supportsPersistentCache) return;
+    const cacheStore = await caches.open(CACHE_NAME);
+    const keys = await cacheStore.keys();
+    const activeNeedle = `/api/v1/pipeline/${activeJobId}/frames/`;
+    await Promise.all(
+      keys
+        .filter((req) => req.url.includes('/api/v1/pipeline/') && !req.url.includes(activeNeedle))
+        .map((req) => cacheStore.delete(req)),
+    );
+  }, []);
+
   /** Fetch a single frame as a blob and store its object URL */
   const prefetchFrame = useCallback(
     async (jobId: string, idx: number) => {
       if (cacheRef.current.has(idx) || fetchingRef.current.has(idx)) return;
+      if (inflightGlobalRef.current >= MAX_CONCURRENT_FETCHES) return;
 
       fetchingRef.current.add(idx);
+      inflightGlobalRef.current += 1;
       const controller = new AbortController();
       abortControllersRef.current.set(idx, controller);
 
       try {
-        const res = await fetch(`/api/v1/pipeline/${jobId}/frames/${idx}`, {
+        const request = frameRequest(jobId, idx);
+        if (supportsPersistentCache) {
+          const cacheStore = await caches.open(CACHE_NAME);
+          const cachedResponse = await cacheStore.match(request);
+          if (cachedResponse) {
+            const cachedBlob = await cachedResponse.blob();
+            if (fetchingRef.current.has(idx)) {
+              const cachedBlobUrl = URL.createObjectURL(cachedBlob);
+              cacheRef.current.set(idx, cachedBlobUrl);
+            }
+            return;
+          }
+        }
+
+        const res = await fetch(request, {
           signal: controller.signal,
-          // Tell browser not to reuse cached headers; we manage our own blob cache
-          cache: 'no-store',
+          cache: 'force-cache',
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (supportsPersistentCache) {
+          const cacheStore = await caches.open(CACHE_NAME);
+          await cacheStore.put(request, res.clone());
+        }
         const blob = await res.blob();
         // Only store if we're still in the window (not evicted while fetching)
         if (fetchingRef.current.has(idx)) {
@@ -92,9 +140,10 @@ export function useFramePreloader(
       } finally {
         fetchingRef.current.delete(idx);
         abortControllersRef.current.delete(idx);
+        inflightGlobalRef.current = Math.max(0, inflightGlobalRef.current - 1);
       }
     },
-    [],
+    [frameRequest],
   );
 
   useEffect(() => {
@@ -104,10 +153,12 @@ export function useFramePreloader(
     if (jobId !== lastJobIdRef.current) {
       flushAll();
       lastJobIdRef.current = jobId;
+      trimPersistentCache(jobId).catch(() => {});
     }
 
-    const low  = Math.max(0, currentFrameIndex - BEHIND);
-    const high = Math.min(totalFrames - 1, currentFrameIndex + AHEAD);
+    const { ahead, behind } = getWindowSize(playbackSpeed);
+    const low = Math.max(0, currentFrameIndex - behind);
+    const high = Math.min(totalFrames - 1, currentFrameIndex + ahead);
 
     // Evict frames outside the window
     for (const idx of Array.from(cacheRef.current.keys())) {
@@ -117,7 +168,7 @@ export function useFramePreloader(
     // Prefetch frames in window (prioritise ahead, then behind)
     for (let i = currentFrameIndex; i <= high; i++) prefetchFrame(jobId, i);
     for (let i = currentFrameIndex - 1; i >= low; i--) prefetchFrame(jobId, i);
-  }, [jobId, totalFrames, currentFrameIndex, prefetchFrame, evict, flushAll]);
+  }, [jobId, totalFrames, currentFrameIndex, playbackSpeed, prefetchFrame, evict, flushAll, trimPersistentCache]);
 
   // Flush all blob URLs on unmount
   useEffect(() => {

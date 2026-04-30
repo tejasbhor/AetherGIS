@@ -3,6 +3,7 @@
  * Structure: Session (Parent) -> Runs (Children)
  */
 import { useRef, useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '@app/store/useStore';
 import type { PipelineResult } from '@app/store/useStore';
 
@@ -44,12 +45,14 @@ function ConfirmDialog({
     info:   'ℹ',
   }[variant];
 
-  return (
-    <div className="cdlg-backdrop" onClick={onCancel}>
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div className="cdlg-backdrop" onClick={onCancel} role="dialog" aria-modal="true" aria-labelledby="sm-confirm-title">
       <div className="cdlg-box" onClick={e => e.stopPropagation()}>
         <div className="cdlg-header" style={{ borderLeft: `3px solid ${variantColor}`, background: variantBg }}>
           <span className="cdlg-icon" style={{ color: variantColor }}>{icon}</span>
-          <span className="cdlg-title">{title}</span>
+          <span className="cdlg-title" id="sm-confirm-title">{title}</span>
         </div>
         <div className="cdlg-body">{message}</div>
         <div className="cdlg-footer">
@@ -64,7 +67,8 @@ function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

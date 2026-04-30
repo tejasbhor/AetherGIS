@@ -23,9 +23,9 @@
 .cases-top-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 80px;
+  gap: 44px;
   align-items: flex-end;
-  margin-bottom: 60px;
+  margin-bottom: 34px;
 }
 
 /* --- Header --- */
@@ -35,8 +35,8 @@
 }
 
 .cases-title {
-  font-size: clamp(38px, 5.5vw, 62px);
-  line-height: 1.05;
+  font-size: var(--brand-section-title-size);
+  line-height: var(--brand-section-title-leading);
   font-weight: 700;
   letter-spacing: -0.03em;
   margin-bottom: 24px;
@@ -50,9 +50,9 @@
 }
 
 .cases-description {
-  font-size: 1rem;
-  line-height: 1.5;
-  color: #94a3b8;
+  font-size: var(--brand-section-body-size);
+  line-height: var(--brand-section-body-leading);
+  color: var(--brand-section-body-color);
   max-width: 480px;
 }
 
@@ -67,6 +67,7 @@
   align-items: center;
   justify-content: space-between;
   box-shadow: 0 40px 100px rgba(0, 0, 0, 0.4);
+  margin-top: clamp(28px, 3.2vw, 52px);
 }
 
 .sequence-stage {
@@ -101,6 +102,18 @@
   overflow: hidden;
 }
 
+.stage-seq-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: contrast(1.04) saturate(1.03);
+}
+
+.stage-seq-ai-1 { opacity: 0.68; filter: blur(0.5px) contrast(1.05) saturate(1.06); }
+.stage-seq-ai-2 { opacity: 0.78; filter: blur(0.3px) contrast(1.06) saturate(1.07); }
+.stage-seq-ai-3 { opacity: 0.88; filter: blur(0.1px) contrast(1.07) saturate(1.08); }
+
 .stage-frame.ai {
   width: 70px;
   height: 56px;
@@ -134,13 +147,14 @@
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 .sequence-connector { color: #334155; }
+.sequence-connector span { color: #5b82b0; font-size: 18px; line-height: 1; }
 
 /* --- Category Grid --- */
 .cases-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
-  margin-bottom: 48px;
+  margin-bottom: 28px;
 }
 
 .case-card {
@@ -210,6 +224,18 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
   overflow: hidden;
   position: relative;
+}
+
+.image-view {
+  background: rgba(2, 10, 24, 0.9);
+}
+
+.case-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: contrast(1.06) saturate(1.04);
 }
 
 /* Visuals: Specifics */

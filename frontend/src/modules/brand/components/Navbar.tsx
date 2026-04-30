@@ -100,7 +100,7 @@ const Navbar: React.FC = () => {
 
         <div className="brand-nav-actions">
           <button type="button" className="brand-btn brand-btn-ghost brand-btn-sm" onClick={handleDashboardRedirect}>
-            Sign In
+            Log In
           </button>
           <button type="button" className="brand-btn brand-btn-primary brand-btn-sm" onClick={handleDashboardRedirect}>
             Request Access

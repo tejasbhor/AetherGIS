@@ -77,16 +77,20 @@ function PlaybackEngine() {
   useEffect(() => {
     if (!isPlaying || !hasFrames) return;
     const msPerFrame = 1000 / (10 * playbackSpeed);
+    let rafId = 0;
     let lastTick = performance.now();
-    const id = setInterval(() => {
+
+    const loop = () => {
       const now = performance.now();
-      const elapsed = now - lastTick;
-      if (elapsed >= msPerFrame * 0.85) {
+      if (now - lastTick >= msPerFrame) {
         useStore.getState().playbackTick();
         lastTick = now;
       }
-    }, Math.max(16, msPerFrame * 0.5));
-    return () => clearInterval(id);
+      rafId = window.requestAnimationFrame(loop);
+    };
+
+    rafId = window.requestAnimationFrame(loop);
+    return () => window.cancelAnimationFrame(rafId);
   }, [isPlaying, playbackSpeed, hasFrames]);
 
   return null;
@@ -190,10 +194,44 @@ function StatusBar() {
  * App Module - The GeoAI Engine Workspace
  */
 function AppModule() {
+  const [isDesktopViewport, setIsDesktopViewport] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    return window.innerWidth >= 1180 && !coarsePointer;
+  });
+
   const refreshHistory = useStore((s) => s.refreshHistory);
   useEffect(() => {
     refreshHistory().catch((err) => console.error('History sync failed:', err));
   }, [refreshHistory]);
+
+  useEffect(() => {
+    const evaluateViewport = () => {
+      const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+      setIsDesktopViewport(window.innerWidth >= 1180 && !coarsePointer);
+    };
+    evaluateViewport();
+    window.addEventListener('resize', evaluateViewport);
+    return () => window.removeEventListener('resize', evaluateViewport);
+  }, []);
+
+  if (!isDesktopViewport) {
+    return (
+      <div className="app-device-gate" role="main" aria-label="Desktop required">
+        <div className="app-device-gate-card">
+          <div className="app-device-gate-badge">Desktop Workspace Required</div>
+          <h1>AetherGIS App is currently desktop-optimized.</h1>
+          <p>
+            The operational dashboard requires a large viewport for map telemetry, timeline playback,
+            and multi-panel analysis. Please open this page on a desktop or laptop display.
+          </p>
+          <div className="app-device-gate-meta">
+            Minimum supported viewport: 1180px width · Fine-pointer device recommended
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <SessionGate>

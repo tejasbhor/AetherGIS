@@ -1,17 +1,11 @@
 import React from "react";
 import { motion } from "motion/react";
 import { Globe, Calendar, BrainCircuit, Play, Columns, Target } from "lucide-react";
+import { brandTransitions, fadeUpVariants, inViewOnce } from "@brand/motion";
 import "./SystemSection.css";
 
 const SystemSection: React.FC = () => {
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.8, ease: "easeOut" as any } 
-    },
-  };
+  const itemVariants = fadeUpVariants;
 
   return (
     <section className="brand-section system-section">
@@ -23,7 +17,7 @@ const SystemSection: React.FC = () => {
               className="brand-hero-tag"
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+              viewport={inViewOnce}
             >
               <span className="brand-hero-tag-dot" />
               SYSTEM EXPERIENCE
@@ -34,19 +28,24 @@ const SystemSection: React.FC = () => {
               initial="hidden"
               whileInView="visible"
               variants={itemVariants}
-              viewport={{ once: true }}
+              viewport={inViewOnce}
             >
               A complete WebGIS
               <br />
               <span className="system-title-gradient">environment for temporal analysis.</span>
             </motion.h1>
 
+            <motion.div className="system-bridge-pill" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
+              <span className="system-bridge-dot" aria-hidden="true" />
+              System response to temporal gaps
+            </motion.div>
+
             <motion.p 
               className="system-description"
               initial="hidden"
               whileInView="visible"
               variants={itemVariants}
-              viewport={{ once: true }}
+              viewport={inViewOnce}
             >
               AetherGIS provides an integrated interface designed for real-world 
               exploration and analysis of satellite data.
@@ -66,8 +65,8 @@ const SystemSection: React.FC = () => {
                   initial="hidden"
                   whileInView="visible"
                   variants={itemVariants}
-                  viewport={{ once: true }}
-                  transition={{ delay: idx * 0.1 }}
+                  viewport={inViewOnce}
+                  transition={{ ...brandTransitions.base, delay: idx * 0.08 }}
                 >
                   <div className="system-feature-icon">
                     {feature.icon}
@@ -85,7 +84,7 @@ const SystemSection: React.FC = () => {
               initial="hidden"
               whileInView="visible"
               variants={itemVariants}
-              viewport={{ once: true }}
+              viewport={inViewOnce}
             >
               <div className="bottom-pill-icon">
                 <Target size={20} />
@@ -102,8 +101,8 @@ const SystemSection: React.FC = () => {
             className="system-visualization"
             initial={{ opacity: 0, scale: 0.95, x: 30 }}
             whileInView={{ opacity: 1, scale: 1, x: 0 }}
-            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-            viewport={{ once: true }}
+            transition={brandTransitions.slow}
+            viewport={inViewOnce}
           >
             <div className="dashboard-mock-container">
               <div className="dashboard-mock-header">

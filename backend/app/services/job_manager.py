@@ -114,7 +114,7 @@ def _get_redis() -> Optional[redis_sync.Redis]:
 
 _mem_jobs: dict[str, dict] = {}
 
-JOB_TTL_SECONDS = 86400 * 7  # 7 days
+JOB_TTL_SECONDS = int(settings.run_artifact_ttl_hours) * 3600
 
 
 def _save_job(record: JobRecord) -> None:
@@ -248,6 +248,7 @@ def create_job(
     payload: Optional[dict] = None,
     session_id: Optional[str] = None,
     session_name: Optional[str] = None,
+    user_id: Optional[str] = None,
 ) -> JobRecord:
     pos = _enqueue(job_id, priority)
     eta = _estimate_completion(pos)
@@ -269,6 +270,7 @@ def create_job(
             priority=priority.value,
             session_id=session_id,
             session_name=session_name,
+            user_id=user_id,
         )
     _append_audit(job_id, "job_created", {"priority": priority.value, "queue_position": pos})
     logger.info("Job created", job_id=job_id, priority=priority.value, queue_pos=pos)

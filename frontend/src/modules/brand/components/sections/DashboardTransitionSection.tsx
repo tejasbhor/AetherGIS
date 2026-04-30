@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
+import { brandTransitions, fadeUpVariants, inViewOnce, staggerContainerVariants } from "@brand/motion";
 import { 
   ArrowRight, 
   Lock, 
@@ -14,14 +15,7 @@ import {
 import "./DashboardTransitionSection.css";
 
 const DashboardTransitionSection: React.FC = () => {
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.8, ease: "easeOut" as any } 
-    },
-  };
+  const itemVariants = fadeUpVariants;
 
   return (
     <section className="brand-section transition-section">
@@ -32,18 +26,18 @@ const DashboardTransitionSection: React.FC = () => {
           
           {/* Left Column: CTA Narrative */}
           <div className="transition-cta-column">
-            <motion.div className="brand-hero-tag" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.div className="brand-hero-tag" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               <Rocket size={14} className="tag-icon-blue" />
               GET STARTED
             </motion.div>
 
-            <motion.h1 className="transition-title" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.h1 className="transition-title" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               Experience
               <br />
               <span className="transition-title-gradient">AetherGIS.</span>
             </motion.h1>
 
-            <motion.p className="transition-description" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.p className="transition-description" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               Explore how AI can transform the way 
               you interpret satellite imagery.
             </motion.p>
@@ -53,8 +47,8 @@ const DashboardTransitionSection: React.FC = () => {
               initial="hidden"
               whileInView="visible"
               variants={itemVariants}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
+              viewport={inViewOnce}
+              transition={{ ...brandTransitions.base, delay: 0.1 }}
             >
               <div className="access-icon-box"><ShieldCheck size={20} /></div>
               <p>
@@ -67,8 +61,8 @@ const DashboardTransitionSection: React.FC = () => {
               initial="hidden"
               whileInView="visible"
               variants={itemVariants}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
+              viewport={inViewOnce}
+              transition={{ ...brandTransitions.base, delay: 0.2 }}
             >
               <Link to="/access" className="brand-btn brand-btn-primary brand-btn-lg transition-cta-button">
                 <span>Request Platform Access</span>
@@ -81,8 +75,8 @@ const DashboardTransitionSection: React.FC = () => {
               initial="hidden"
               whileInView="visible"
               variants={itemVariants}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
+              viewport={inViewOnce}
+              transition={{ ...brandTransitions.base, delay: 0.3 }}
             >
               <Lock size={14} />
               <span>Secure access. Controlled sessions. Maximum performance.</span>
@@ -94,8 +88,8 @@ const DashboardTransitionSection: React.FC = () => {
             className="dashboard-perspective-container"
             initial={{ opacity: 0, x: 100, rotateY: 10 }}
             whileInView={{ opacity: 1, x: 0, rotateY: -15 }}
-            transition={{ duration: 1.2, ease: "easeOut" as any }}
-            viewport={{ once: true }}
+            transition={brandTransitions.slow}
+            viewport={inViewOnce}
           >
             <div className="dashboard-frame">
               <img 
@@ -115,10 +109,8 @@ const DashboardTransitionSection: React.FC = () => {
             className="pillars-grid"
             initial="hidden"
             whileInView="visible"
-            variants={{
-              visible: { transition: { staggerChildren: 0.1 } }
-            }}
-            viewport={{ once: true }}
+            variants={staggerContainerVariants}
+            viewport={inViewOnce}
           >
             {[
               { icon: <Cpu />, title: "AI-Powered", sub: "Interpolation" },

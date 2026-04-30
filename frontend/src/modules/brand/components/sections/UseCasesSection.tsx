@@ -1,24 +1,17 @@
 import React from "react";
 import { motion } from "motion/react";
+import { brandTransitions, fadeUpVariants, inViewOnce } from "@brand/motion";
 import { 
   GraduationCap, 
   Microscope, 
   Newspaper, 
   BarChart3, 
-  Target,
-  ArrowRight
+  Target
 } from "lucide-react";
 import "./UseCasesSection.css";
 
 const UseCasesSection: React.FC = () => {
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.8, ease: "easeOut" as any } 
-    },
-  };
+  const itemVariants = fadeUpVariants;
 
   return (
     <section className="brand-section use-cases-section">
@@ -27,18 +20,18 @@ const UseCasesSection: React.FC = () => {
         {/* Top Section: Narrative + Sequence Grid */}
         <div className="cases-top-grid">
           <div className="cases-header">
-            <motion.div className="brand-hero-tag" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.div className="brand-hero-tag" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               <span className="brand-hero-tag-dot" />
               USE CASES
             </motion.div>
 
-            <motion.h1 className="cases-title" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.h1 className="cases-title" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               Designed for
               <br />
               <span className="cases-title-gradient">understanding dynamic Earth systems.</span>
             </motion.h1>
 
-            <motion.p className="cases-description" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }}>
+            <motion.p className="cases-description" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce}>
               AetherGIS is built for users who need clearer 
               interpretation of environmental change.
             </motion.p>
@@ -48,25 +41,25 @@ const UseCasesSection: React.FC = () => {
             className="sequence-visual-box"
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
-            transition={{ duration: 1 }}
-            viewport={{ once: true }}
+            transition={brandTransitions.slow}
+            viewport={inViewOnce}
           >
             <div className="sequence-stage">
               <span className="stage-label">OBSERVED</span>
               <div className="stage-frame real">
-                <div className="frame-placeholder hurricane-small" />
+                <img className="stage-seq-img" src="/landing/satellite_hurricane_frame_1.png" alt="Observed frame" loading="lazy" />
               </div>
             </div>
 
             <div className="sequence-connector">
-              <ArrowRight size={14} />
+              <span>•</span>
             </div>
 
             <div className="sequence-stage ai-stage">
               <div className="ai-frames-row">
                 {[1, 2, 3].map(i => (
                   <div className="stage-frame ai" key={i}>
-                    <div className={`frame-placeholder hurricane-small-blur-${i}`} />
+                    <img className={`stage-seq-img stage-seq-ai-${i}`} src="/landing/satellite_hurricane_frame_1.png" alt="AI reconstruction" loading="lazy" />
                   </div>
                 ))}
               </div>
@@ -74,13 +67,13 @@ const UseCasesSection: React.FC = () => {
             </div>
 
             <div className="sequence-connector">
-              <ArrowRight size={14} />
+              <span>•</span>
             </div>
 
             <div className="sequence-stage">
               <span className="stage-label">OBSERVED</span>
               <div className="stage-frame real">
-                <div className="frame-placeholder hurricane-small-final" />
+                <img className="stage-seq-img" src="/landing/satellite_hurricane_frame_2.png" alt="Observed frame" loading="lazy" />
               </div>
             </div>
           </motion.div>
@@ -90,7 +83,7 @@ const UseCasesSection: React.FC = () => {
         <div className="cases-grid">
           
           {/* 1. Students & Educators */}
-          <motion.div className="case-card" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }} transition={{ delay: 0.1 }}>
+          <motion.div className="case-card" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce} transition={{ ...brandTransitions.base, delay: 0.1 }}>
             <div className="case-card-header">
               <div className="case-icon-box"><GraduationCap size={18} /></div>
               <div className="case-text-row">
@@ -98,19 +91,13 @@ const UseCasesSection: React.FC = () => {
                 <span className="case-subtitle-small">Visualize atmospheric processes with clarity.</span>
               </div>
             </div>
-            <div className="case-card-visual split-view">
-              <div className="split-left" />
-              <div className="split-right" />
-              <div className="split-divider">
-                <div className="divider-handle">
-                  <span>&lt;&gt;</span>
-                </div>
-              </div>
+            <div className="case-card-visual image-view">
+              <img className="case-media" src="/landing/use-case-section%20eduction.jpeg" alt="Education use case" loading="lazy" />
             </div>
           </motion.div>
 
           {/* 2. Researchers */}
-          <motion.div className="case-card" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }} transition={{ delay: 0.2 }}>
+          <motion.div className="case-card" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce} transition={{ ...brandTransitions.base, delay: 0.2 }}>
             <div className="case-card-header">
               <div className="case-icon-box"><Microscope size={18} /></div>
               <div className="case-text-row">
@@ -118,20 +105,13 @@ const UseCasesSection: React.FC = () => {
                 <span className="case-subtitle-small">Explore temporal patterns in satellite data.</span>
               </div>
             </div>
-            <div className="case-card-visual chart-view">
-              <div className="chart-header">Cloud Coverage (%)</div>
-              <svg viewBox="0 0 200 100" className="mini-chart">
-                <path d="M0 80 Q 25 20, 50 60 T 100 40 T 150 70 T 200 30" fill="none" stroke="#3b82f6" strokeWidth="2" />
-                <circle cx="100" cy="40" r="3" fill="#fff" />
-                <rect x="105" y="45" width="60" height="30" rx="4" className="chart-tooltip-bg" />
-                <text x="110" y="58" className="tooltip-title">Significant</text>
-                <text x="110" y="70" className="tooltip-sub">Change Detected</text>
-              </svg>
+            <div className="case-card-visual image-view">
+              <img className="case-media" src="/landing/use-case-section%20research.jpeg" alt="Research use case" loading="lazy" />
             </div>
           </motion.div>
 
           {/* 3. Journalists */}
-          <motion.div className="case-card" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }} transition={{ delay: 0.3 }}>
+          <motion.div className="case-card" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce} transition={{ ...brandTransitions.base, delay: 0.3 }}>
             <div className="case-card-header">
               <div className="case-icon-box"><Newspaper size={18} /></div>
               <div className="case-text-row">
@@ -139,17 +119,13 @@ const UseCasesSection: React.FC = () => {
                 <span className="case-subtitle-small">Communicate environmental events effectively.</span>
               </div>
             </div>
-            <div className="case-card-visual zoom-view">
-              <div className="hurricane-zoom" />
-              <div className="zoom-label">
-                <strong>Cyclone Formation</strong>
-                <span>Over Bay of Bengal</span>
-              </div>
+            <div className="case-card-visual image-view">
+              <img className="case-media" src="/landing/use-case-section%20journalist.jpeg" alt="Journalism use case" loading="lazy" />
             </div>
           </motion.div>
 
           {/* 4. Analysts */}
-          <motion.div className="case-card" initial="hidden" whileInView="visible" variants={itemVariants} viewport={{ once: true }} transition={{ delay: 0.4 }}>
+          <motion.div className="case-card" initial="hidden" whileInView="visible" variants={itemVariants} viewport={inViewOnce} transition={{ ...brandTransitions.base, delay: 0.4 }}>
             <div className="case-card-header">
               <div className="case-icon-box"><BarChart3 size={18} /></div>
               <div className="case-text-row">
@@ -157,9 +133,8 @@ const UseCasesSection: React.FC = () => {
                 <span className="case-subtitle-small">Enhance situational awareness.</span>
               </div>
             </div>
-            <div className="case-card-visual map-view">
-              <div className="map-placeholder-india" />
-              <div className="heatmap-overlay" />
+            <div className="case-card-visual image-view">
+              <img className="case-media" src="/landing/use-case-section%20Analysis.jpeg" alt="Analysis use case" loading="lazy" />
             </div>
           </motion.div>
 
@@ -171,7 +146,7 @@ const UseCasesSection: React.FC = () => {
           initial="hidden"
           whileInView="visible"
           variants={itemVariants}
-          viewport={{ once: true }}
+          viewport={inViewOnce}
         >
           <div className="mission-icon"><Target size={24} /></div>
           <p>

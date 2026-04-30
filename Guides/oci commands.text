@@ -1,5 +1,10 @@
  cat /opt/aethergis/.env
-chmod +x scripts/cloud-sync.sh
+sudo bash scripts/cloud-sync.sh
+
+sudo bash scripts/cloud-sync.sh
 
 
 
+cd /opt/aethergis 
+
+sudo ./scripts/cloud-sync.sh

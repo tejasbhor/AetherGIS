@@ -15,10 +15,11 @@ import uuid
 from datetime import datetime
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.app.config import get_settings
+from backend.app.api.deps.identity import resolve_current_user_id
 from backend.app.models.schemas import InterpolationModel, Resolution, DataSource
 from backend.app.services.job_manager import (
     JobPriority,
@@ -37,6 +38,7 @@ from backend.app.services.job_manager import (
     append_audit_event,
 )
 from backend.app.utils.logging import get_logger
+from backend.app.services.persistence import get_run as get_persisted_run
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 logger = get_logger(__name__)
@@ -207,7 +209,10 @@ async def _run_job_async(payload: dict, job_id: str) -> None:
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 @router.post("", response_model=dict, status_code=202)
-async def submit_job(request: JobSubmitRequest) -> dict:
+async def submit_job(
+    request: JobSubmitRequest,
+    current_user_id: str = Depends(resolve_current_user_id),
+) -> dict:
     """Submit a new pipeline job with priority queue support."""
     allowed, reason = can_accept_new_job()
     if not allowed:
@@ -223,6 +228,7 @@ async def submit_job(request: JobSubmitRequest) -> dict:
         payload=payload,
         session_id=request.session_id,
         session_name=request.session_name,
+        user_id=current_user_id,
     )
     save_manifest(job_id, manifest)
 
@@ -250,8 +256,10 @@ async def submit_job(request: JobSubmitRequest) -> dict:
 
 
 @router.get("/{job_id}/status", response_model=JobStatusResponse)
-async def get_job_status(job_id: str) -> JobStatusResponse:
+async def get_job_status(job_id: str, current_user_id: str = Depends(resolve_current_user_id)) -> JobStatusResponse:
     """Get full job status including stage, queue position, and ETA."""
+    if get_persisted_run(job_id, user_id=current_user_id) is None:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     record = get_job(job_id)
     if record is None:
         # Try Celery
@@ -299,8 +307,11 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
 async def get_job_logs_endpoint(
     job_id: str,
     since: Optional[str] = Query(None, description="ISO timestamp — return only logs after this time"),
+    current_user_id: str = Depends(resolve_current_user_id),
 ) -> list[dict]:
     """Get structured log stream for a job."""
+    if get_persisted_run(job_id, user_id=current_user_id) is None:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     logs = get_job_logs(job_id)
     if not logs:
         raise HTTPException(status_code=404, detail=f"No logs found for job {job_id}")
@@ -316,8 +327,10 @@ async def get_job_logs_endpoint(
 
 
 @router.post("/{job_id}/cancel", response_model=dict)
-async def cancel_job_endpoint(job_id: str) -> dict:
+async def cancel_job_endpoint(job_id: str, current_user_id: str = Depends(resolve_current_user_id)) -> dict:
     """Cancel a queued or running job."""
+    if get_persisted_run(job_id, user_id=current_user_id) is None:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     # Revoke Celery task
     try:
         from backend.app.tasks.celery_app import celery_app
@@ -333,8 +346,10 @@ async def cancel_job_endpoint(job_id: str) -> dict:
 
 
 @router.get("/{job_id}/reproduce", response_model=dict)
-async def get_reproduce_manifest(job_id: str) -> dict:
+async def get_reproduce_manifest(job_id: str, current_user_id: str = Depends(resolve_current_user_id)) -> dict:
     """Get the full reproducibility manifest for a job (MODULE 2)."""
+    if get_persisted_run(job_id, user_id=current_user_id) is None:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     manifest = load_manifest(job_id)
     if manifest is None:
         raise HTTPException(status_code=404, detail=f"No manifest found for job {job_id}")
@@ -342,8 +357,10 @@ async def get_reproduce_manifest(job_id: str) -> dict:
 
 
 @router.get("/{job_id}/audit", response_model=list)
-async def get_audit_trail(job_id: str) -> list:
+async def get_audit_trail(job_id: str, current_user_id: str = Depends(resolve_current_user_id)) -> list:
     """Get the complete audit trail for a job (MODULE 15)."""
+    if get_persisted_run(job_id, user_id=current_user_id) is None:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     trail = load_audit_trail(job_id)
     if not trail:
         raise HTTPException(status_code=404, detail=f"No audit trail found for job {job_id}")
