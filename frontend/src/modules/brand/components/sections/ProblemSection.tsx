@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
-import { Info, Clock, Layers, HelpCircle, BarChart3, Target, ChevronDown } from "lucide-react";
+import { Info, Clock, Layers, HelpCircle, BarChart3, Target } from "lucide-react";
 import { brandTransitions, fadeUpVariants, inViewOnce, staggerContainerVariants } from "@brand/motion";
 import "./ProblemSection.css";
 
