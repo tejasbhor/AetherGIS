@@ -4,6 +4,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,6 +48,15 @@ class Settings(BaseSettings):
     # MODULE 12 — Security & JWT
     jwt_secret_key: str = 'aether-dev-secret-change-me-in-production'
     jwt_algorithm: str = 'HS256'
+
+    @model_validator(mode='after')
+    def validate_jwt_secret(self) -> 'Settings':
+        default_secret = 'aether-dev-secret-change-me-in-production'
+        if self.aether_mode == 'production':
+            if not self.jwt_secret_key or self.jwt_secret_key == default_secret:
+                raise ValueError("jwt_secret_key is mandatory in production mode and cannot be the default value.")
+        # Retain the default secret in development for stable sessions across hot-reloads
+        return self
     session_expiry_hours: int = 24
     csrf_header_name: str = 'X-Aether-CSRF'
 
