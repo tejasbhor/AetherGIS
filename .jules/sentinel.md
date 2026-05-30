@@ -1,0 +1,4 @@
+## 2024-05-30 - [Fix XSS Vulnerability in Report Generation]
+**Vulnerability:** The application manually builds HTML reports using f-strings in `backend/app/services/report_service.py` without automatically escaping dynamic variables. This is a classic Cross-Site Scripting (XSS) vulnerability.
+**Learning:** There is no automatic template escaping, meaning dynamic variables inserted into HTML strings must be manually sanitized. When escaping HTML strings that also require truncation, the string must be sliced before applying `html.escape()` to avoid truncating in the middle of an HTML entity and generating malformed HTML. Also ensure not to shadow the built-in `html` library if `html` is used as a local variable.
+**Prevention:** Always explicitly use `html.escape()` (or `html_lib.escape()` to avoid variable shadowing) on any user-controlled or dynamic strings before embedding them into raw HTML formats.
