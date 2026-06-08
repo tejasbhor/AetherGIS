@@ -6,6 +6,7 @@ execution parameters, quality metrics, and output artifacts.
 """
 from __future__ import annotations
 
+import html
 from datetime import datetime
 from typing import Any, Optional
 
@@ -217,16 +218,16 @@ def generate_html_report(
         alert_rows += f"""
         <tr>
           <td class="font-mono">{a.get('frame_index', '—')}</td>
-          <td>{str(a.get('type', '—')).replace('_', ' ').capitalize()}</td>
+          <td>{html.escape(str(a.get('type', '—')).replace('_', ' ').capitalize())}</td>
           <td>{_sev_badge(a.get('severity', 'low'))}</td>
-          <td style="color: #444444;">{a.get('description', '—')[:140]}</td>
+          <td style="color: #444444;">{html.escape(str(a.get('description', '—'))[:140])}</td>
         </tr>"""
     
     traj_rows = ""
     for t in (trajectories or [])[:15]:
         traj_rows += f"""
         <tr>
-          <td class="font-mono">{t.get('id', '—')}</td>
+          <td class="font-mono">{html.escape(str(t.get('id', '—')))}</td>
           <td class="font-mono">{t.get('speed', 0):.5f}</td>
           <td class="font-mono">{t.get('direction_deg', 0):.1f}&deg;</td>
           <td class="font-mono">{t.get('intensity', 0):.4f}</td>
@@ -237,7 +238,7 @@ def generate_html_report(
         issue_rows += f"""
         <tr>
           <td class="font-mono">{iss.get('frame', '—')}</td>
-          <td>{iss.get('issue', '—')}</td>
+          <td>{html.escape(str(iss.get('issue', '—')))}</td>
           <td>{_sev_badge(iss.get('severity', 'low'))}</td>
           <td class="font-mono">{iss.get('mad_score', '—')}</td>
         </tr>"""
@@ -246,18 +247,18 @@ def generate_html_report(
     model_rows = ""
     for model, count in sorted(frame_stats["by_model"].items(), key=lambda x: x[1], reverse=True):
         pct = (count / max(n_total, 1)) * 100
-        model_rows += f"<tr><td class='font-mono'>{model}</td><td class='font-mono'>{count}</td><td class='font-mono'>{pct:.1f}%</td></tr>"
+        model_rows += f"<tr><td class='font-mono'>{html.escape(str(model))}</td><td class='font-mono'>{count}</td><td class='font-mono'>{pct:.1f}%</td></tr>"
     
     # Confidence distribution
     frame_stats["by_confidence"]
     
     # Build the comprehensive HTML report
-    html = f"""<!DOCTYPE html>
+    html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AetherGIS Technical Report — {job_id[:12]}</title>
+  <title>AetherGIS Technical Report — {html.escape(str(job_id)[:12])}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -719,11 +720,11 @@ def generate_html_report(
       <p class="report-subtitle">Satellite Imagery Frame Interpolation Pipeline — Technical Documentation</p>
       
       <div class="report-meta">
-        <span><span class="meta-label">Job ID:</span> {job_id}</span>
-        <span><span class="meta-label">Layer:</span> {layer_id}</span>
+        <span><span class="meta-label">Job ID:</span> {html.escape(str(job_id))}</span>
+        <span><span class="meta-label">Layer:</span> {html.escape(str(layer_id))}</span>
         <span><span class="meta-label">Status:</span> 
           <span class="status-badge {'status-success' if status == 'completed' else 'status-error' if error_msg else 'status-warning'}">
-            <span class="status-dot"></span>{status.upper()}
+            <span class="status-dot"></span>{html.escape(str(status).upper())}
           </span>
         </span>
         <span><span class="meta-label">Generated:</span> {now}</span>
@@ -742,7 +743,7 @@ def generate_html_report(
           <p>
             This report documents the execution of the AetherGIS temporal interpolation pipeline 
             for satellite imagery sequence generation. The pipeline processed <strong>{n_obs} observed frames</strong> 
-            from {data_source} source data, generating <strong>{n_interp} AI-interpolated intermediate frames</strong> 
+            from {html.escape(str(data_source))} source data, generating <strong>{n_interp} AI-interpolated intermediate frames</strong>
             for temporal gap filling. Total output sequence comprises <strong>{n_total} frames</strong>.
             {" Execution completed with errors." if error_msg else f" Execution completed successfully in {duration}."}
           </p>
@@ -788,19 +789,19 @@ def generate_html_report(
         <div class="info-grid">
           <div class="info-row">
             <div class="info-label">Job ID</div>
-            <div class="info-value">{job_id}</div>
+            <div class="info-value">{html.escape(str(job_id))}</div>
           </div>
           <div class="info-row">
             <div class="info-label">Data Source</div>
-            <div class="info-value">{data_source}</div>
+            <div class="info-value">{html.escape(str(data_source))}</div>
           </div>
           <div class="info-row">
             <div class="info-label">Layer ID</div>
-            <div class="info-value">{layer_id}</div>
+            <div class="info-value">{html.escape(str(layer_id))}</div>
           </div>
           <div class="info-row">
             <div class="info-label">Status</div>
-            <div class="info-value">{status.upper()}</div>
+            <div class="info-value">{html.escape(str(status).upper())}</div>
           </div>
           <div class="info-row">
             <div class="info-label">Created At</div>
@@ -821,7 +822,7 @@ def generate_html_report(
         </div>
         
         {f'''<div class="note-box warning">
-          <strong>Execution Error:</strong> This pipeline run encountered an error during execution: {error_msg}
+          <strong>Execution Error:</strong> This pipeline run encountered an error during execution: {html.escape(str(error_msg))}
         </div>''' if error_msg else ''}
       </div>
       
@@ -973,11 +974,11 @@ def generate_html_report(
         <h3 class="section-subtitle">Video Sequences</h3>
         <ul class="artifact-list">
           <li>
-            <span class="artifact-path">/exports/{job_id}/original.mp4</span>
+            <span class="artifact-path">/exports/{html.escape(str(job_id))}/original.mp4</span>
             <span class="artifact-desc">Original observed frame sequence (no interpolation)</span>
           </li>
           <li>
-            <span class="artifact-path">/exports/{job_id}/interpolated.mp4</span>
+            <span class="artifact-path">/exports/{html.escape(str(job_id))}/interpolated.mp4</span>
             <span class="artifact-desc">Full interpolated sequence (observed + AI frames)</span>
           </li>
         </ul>
@@ -985,7 +986,7 @@ def generate_html_report(
         <h3 class="section-subtitle">Frame Archive</h3>
         <ul class="artifact-list">
           <li>
-            <span class="artifact-path">/exports/{job_id}/frames/frame_*.png</span>
+            <span class="artifact-path">/exports/{html.escape(str(job_id))}/frames/frame_*.png</span>
             <span class="artifact-desc">Individual frame images ({n_total} frames, PNG format)</span>
           </li>
         </ul>
@@ -993,11 +994,11 @@ def generate_html_report(
         <h3 class="section-subtitle">Metadata & Documentation</h3>
         <ul class="artifact-list">
           <li>
-            <span class="artifact-path">/exports/{job_id}/metadata.json</span>
+            <span class="artifact-path">/exports/{html.escape(str(job_id))}/metadata.json</span>
             <span class="artifact-desc">Complete frame metadata with per-frame metrics</span>
           </li>
           <li>
-            <span class="artifact-path">/exports/{job_id}/report.html</span>
+            <span class="artifact-path">/exports/{html.escape(str(job_id))}/report.html</span>
             <span class="artifact-desc">This technical analysis report</span>
           </li>
         </ul>
@@ -1100,7 +1101,7 @@ def generate_html_report(
         <h3 class="section-subtitle">Traceability Statement</h3>
         <p style="font-size: 11px; color: var(--t3); line-height: 1.6;">
           This report was auto-generated by AetherGIS v2.0 pipeline system. All metrics 
-          are computed from the actual execution artifacts stored at <code>/exports/{job_id}/</code>. 
+          are computed from the actual execution artifacts stored at <code>/exports/{html.escape(str(job_id))}/</code>.
           Frame-level metadata includes: source timestamp, interpolation model used, 
           PSNR/SSIM scores (for interpolated frames), confidence classification, and gap 
           category. In case of database record loss, results can be fully reconstructed 
@@ -1118,13 +1119,13 @@ def generate_html_report(
           <strong>Primary Source:</strong> NASA GIBS Earthdata API (Global Imagery Browse Services)<br>
           <strong>Interpolation Engine:</strong> AetherGIS v2.0 with RIFE/FILM optical flow models<br>
           <strong>Processing Location:</strong> AetherGIS Analysis Pipeline (Module 15)<br>
-          <strong>Report ID:</strong> RPT-{job_id[:12]}-{datetime.utcnow().strftime('%Y%m%d')}
+          <strong>Report ID:</strong> RPT-{html.escape(str(job_id)[:12])}-{datetime.utcnow().strftime('%Y%m%d')}
         </p>
       </div>
       
       <div class="footer-meta">
         <span>AetherGIS Technical Report</span>
-        <span>Job: {job_id[:16]}</span>
+        <span>Job: {html.escape(str(job_id)[:16])}</span>
         <span>Generated: {now}</span>
       </div>
     </div>
@@ -1133,4 +1134,4 @@ def generate_html_report(
 </body>
 </html>"""
     
-    return html
+    return html_content
