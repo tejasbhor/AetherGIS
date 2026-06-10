@@ -1,0 +1,5 @@
+
+## 2024-06-11 - XSS Vulnerability in HTML Report Generation
+**Vulnerability:** The HTML report generation in `backend/app/services/report_service.py` concatenated dynamic string parameters (like `layer_id`, `data_source`, `error_msg`, `alert['description']`) directly into an HTML string without escaping them, leaving the system vulnerable to Cross-Site Scripting (XSS).
+**Learning:** Creating complex HTML strings manually using f-strings bypasses automatic escaping that template engines (like Jinja2) provide. Also, the local variable used to hold the HTML content was named `html`, which shadowed the Python standard library `html` module, making it difficult to use `html.escape`.
+**Prevention:** Avoid shadowing standard library module names (e.g., use `html_content` instead of `html`). When generating HTML manually, always wrap dynamically injected string variables with `html.escape()` before appending them to the HTML output, particularly when they involve unstructured or user-influenced data (such as alerts or error messages).
