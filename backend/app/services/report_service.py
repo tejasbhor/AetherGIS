@@ -6,9 +6,16 @@ execution parameters, quality metrics, and output artifacts.
 """
 from __future__ import annotations
 
+import html
 from datetime import datetime
 from typing import Any, Optional
 
+
+
+def _escape(val: Any) -> str:
+    if val is None:
+        return ""
+    return html.escape(str(val))
 
 def _metric_badge(value: Optional[float], good: float, ok: float, unit: str = "") -> str:
     """Generate a styled badge for metric values with color coding."""
@@ -170,15 +177,15 @@ def generate_html_report(
     frames = pipeline_result.get("frames") or []
     
     # Job metadata
-    layer_id = pipeline_result.get("layer_id", "Unknown")
-    data_source = pipeline_result.get("data_source", "Unknown")
-    status = pipeline_result.get("status", "Unknown")
+    layer_id = _escape(pipeline_result.get("layer_id", "Unknown"))
+    data_source = _escape(pipeline_result.get("data_source", "Unknown"))
+    status = _escape(pipeline_result.get("status", "Unknown"))
     bbox = pipeline_result.get("bbox", [])
     time_start = pipeline_result.get("time_start")
     time_end = pipeline_result.get("time_end")
     created_at = pipeline_result.get("created_at")
     completed_at = pipeline_result.get("completed_at")
-    error_msg = pipeline_result.get("error")
+    error_msg = _escape(pipeline_result.get("error")) if pipeline_result.get("error") else None
     
     # Calculate metrics
     n_total = metrics.get("total_frames", len(frames))
@@ -217,9 +224,9 @@ def generate_html_report(
         alert_rows += f"""
         <tr>
           <td class="font-mono">{a.get('frame_index', '—')}</td>
-          <td>{str(a.get('type', '—')).replace('_', ' ').capitalize()}</td>
+          <td>{_escape(str(a.get('type', '—')).replace('_', ' ').capitalize())}</td>
           <td>{_sev_badge(a.get('severity', 'low'))}</td>
-          <td style="color: #444444;">{a.get('description', '—')[:140]}</td>
+          <td style="color: #444444;">{_escape(a.get('description', '—')[:140])}</td>
         </tr>"""
     
     traj_rows = ""
@@ -237,7 +244,7 @@ def generate_html_report(
         issue_rows += f"""
         <tr>
           <td class="font-mono">{iss.get('frame', '—')}</td>
-          <td>{iss.get('issue', '—')}</td>
+          <td>{_escape(iss.get('issue', '—'))}</td>
           <td>{_sev_badge(iss.get('severity', 'low'))}</td>
           <td class="font-mono">{iss.get('mad_score', '—')}</td>
         </tr>"""
@@ -252,7 +259,7 @@ def generate_html_report(
     frame_stats["by_confidence"]
     
     # Build the comprehensive HTML report
-    html = f"""<!DOCTYPE html>
+    html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -1133,4 +1140,4 @@ def generate_html_report(
 </body>
 </html>"""
     
-    return html
+    return html_content
