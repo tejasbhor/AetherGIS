@@ -1,0 +1,4 @@
+## 2024-06-18 - XSS in Manual HTML Report Generation
+**Vulnerability:** XSS vulnerability in `backend/app/services/report_service.py` where dynamic variables (`job_id`, `layer_id`, `data_source`, etc.) were interpolated directly into an f-string HTML template without escaping.
+**Learning:** Manual string interpolation (like f-strings) lacks automatic HTML escaping. This leads to XSS vulnerabilities if user-controlled or dynamic data is injected. Truncating text *after* HTML escaping can result in malformed HTML entities (e.g., slicing `&amp;` in half).
+**Prevention:** Always escape dynamic content before inserting it into manual HTML templates. Use `import html as html_lib` and `html_lib.escape(str(val))` for type safety and to avoid shadowing local `html` variables. Apply truncations *before* escaping.
