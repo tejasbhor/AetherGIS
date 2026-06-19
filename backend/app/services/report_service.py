@@ -6,6 +6,7 @@ execution parameters, quality metrics, and output artifacts.
 """
 from __future__ import annotations
 
+import html
 from datetime import datetime
 from typing import Any, Optional
 
@@ -170,15 +171,18 @@ def generate_html_report(
     frames = pipeline_result.get("frames") or []
     
     # Job metadata
-    layer_id = pipeline_result.get("layer_id", "Unknown")
-    data_source = pipeline_result.get("data_source", "Unknown")
-    status = pipeline_result.get("status", "Unknown")
+    layer_id = html.escape(str(pipeline_result.get("layer_id", "Unknown")))
+    data_source = html.escape(str(pipeline_result.get("data_source", "Unknown")))
+    status = html.escape(str(pipeline_result.get("status", "Unknown")))
     bbox = pipeline_result.get("bbox", [])
     time_start = pipeline_result.get("time_start")
     time_end = pipeline_result.get("time_end")
     created_at = pipeline_result.get("created_at")
     completed_at = pipeline_result.get("completed_at")
-    error_msg = pipeline_result.get("error")
+
+    error_val = pipeline_result.get("error")
+    error_msg = html.escape(str(error_val)) if error_val else None
+    job_id = html.escape(str(job_id))
     
     # Calculate metrics
     n_total = metrics.get("total_frames", len(frames))
@@ -214,19 +218,22 @@ def generate_html_report(
     # Generate tables
     alert_rows = ""
     for a in (alerts or [])[:25]:
+        a_type = html.escape(str(a.get('type', '—')).replace('_', ' ').capitalize())
+        a_desc = html.escape(str(a.get('description', '—'))[:140])
         alert_rows += f"""
         <tr>
           <td class="font-mono">{a.get('frame_index', '—')}</td>
-          <td>{str(a.get('type', '—')).replace('_', ' ').capitalize()}</td>
+          <td>{a_type}</td>
           <td>{_sev_badge(a.get('severity', 'low'))}</td>
-          <td style="color: #444444;">{a.get('description', '—')[:140]}</td>
+          <td style="color: #444444;">{a_desc}</td>
         </tr>"""
     
     traj_rows = ""
     for t in (trajectories or [])[:15]:
+        t_id = html.escape(str(t.get('id', '—')))
         traj_rows += f"""
         <tr>
-          <td class="font-mono">{t.get('id', '—')}</td>
+          <td class="font-mono">{t_id}</td>
           <td class="font-mono">{t.get('speed', 0):.5f}</td>
           <td class="font-mono">{t.get('direction_deg', 0):.1f}&deg;</td>
           <td class="font-mono">{t.get('intensity', 0):.4f}</td>
@@ -234,10 +241,11 @@ def generate_html_report(
     
     issue_rows = ""
     for iss in (consistency_issues or [])[:20]:
+        iss_issue = html.escape(str(iss.get('issue', '—')))
         issue_rows += f"""
         <tr>
           <td class="font-mono">{iss.get('frame', '—')}</td>
-          <td>{iss.get('issue', '—')}</td>
+          <td>{iss_issue}</td>
           <td>{_sev_badge(iss.get('severity', 'low'))}</td>
           <td class="font-mono">{iss.get('mad_score', '—')}</td>
         </tr>"""
@@ -252,7 +260,7 @@ def generate_html_report(
     frame_stats["by_confidence"]
     
     # Build the comprehensive HTML report
-    html = f"""<!DOCTYPE html>
+    html_output = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -1133,4 +1141,4 @@ def generate_html_report(
 </body>
 </html>"""
     
-    return html
+    return html_output
