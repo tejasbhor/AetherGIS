@@ -1,0 +1,4 @@
+## 2025-02-28 - [Cross-Site Scripting (XSS) in HTML Reports]
+**Vulnerability:** User-controllable input from pipeline results (e.g., job IDs, error messages, alert descriptions) was directly interpolated into an HTML template using f-strings without proper HTML escaping. This could lead to Cross-Site Scripting (XSS) if malicious data was injected into the pipeline database or error outputs.
+**Learning:** Python f-strings do not automatically escape variables for HTML contexts. The manual construction of HTML templates can easily introduce XSS vulnerabilities, especially when rendering database values or user-provided error text.
+**Prevention:** Always use `html.escape(str(value))` to sanitize any variable before inserting it into an HTML template. Additionally, consider using template engines like Jinja2 that provide automatic context-aware escaping.
