@@ -6,6 +6,7 @@ execution parameters, quality metrics, and output artifacts.
 """
 from __future__ import annotations
 
+import html
 from datetime import datetime
 from typing import Any, Optional
 
@@ -170,15 +171,17 @@ def generate_html_report(
     frames = pipeline_result.get("frames") or []
     
     # Job metadata
-    layer_id = pipeline_result.get("layer_id", "Unknown")
-    data_source = pipeline_result.get("data_source", "Unknown")
-    status = pipeline_result.get("status", "Unknown")
+    layer_id = html.escape(str(pipeline_result.get("layer_id", "Unknown")))
+    data_source = html.escape(str(pipeline_result.get("data_source", "Unknown")))
+    status = html.escape(str(pipeline_result.get("status", "Unknown")))
     bbox = pipeline_result.get("bbox", [])
     time_start = pipeline_result.get("time_start")
     time_end = pipeline_result.get("time_end")
     created_at = pipeline_result.get("created_at")
     completed_at = pipeline_result.get("completed_at")
     error_msg = pipeline_result.get("error")
+    if error_msg is not None:
+        error_msg = html.escape(str(error_msg))
     
     # Calculate metrics
     n_total = metrics.get("total_frames", len(frames))
@@ -214,19 +217,22 @@ def generate_html_report(
     # Generate tables
     alert_rows = ""
     for a in (alerts or [])[:25]:
+        alert_type = html.escape(str(a.get('type', '—')).replace('_', ' ').capitalize())
+        alert_desc = html.escape(str(a.get('description', '—'))[:140])
         alert_rows += f"""
         <tr>
           <td class="font-mono">{a.get('frame_index', '—')}</td>
-          <td>{str(a.get('type', '—')).replace('_', ' ').capitalize()}</td>
+          <td>{alert_type}</td>
           <td>{_sev_badge(a.get('severity', 'low'))}</td>
-          <td style="color: #444444;">{a.get('description', '—')[:140]}</td>
+          <td style="color: #444444;">{alert_desc}</td>
         </tr>"""
     
     traj_rows = ""
     for t in (trajectories or [])[:15]:
+        traj_id = html.escape(str(t.get('id', '—')))
         traj_rows += f"""
         <tr>
-          <td class="font-mono">{t.get('id', '—')}</td>
+          <td class="font-mono">{traj_id}</td>
           <td class="font-mono">{t.get('speed', 0):.5f}</td>
           <td class="font-mono">{t.get('direction_deg', 0):.1f}&deg;</td>
           <td class="font-mono">{t.get('intensity', 0):.4f}</td>
@@ -234,10 +240,12 @@ def generate_html_report(
     
     issue_rows = ""
     for iss in (consistency_issues or [])[:20]:
+        iss_frame = html.escape(str(iss.get('frame', '—')))
+        iss_issue = html.escape(str(iss.get('issue', '—')))
         issue_rows += f"""
         <tr>
-          <td class="font-mono">{iss.get('frame', '—')}</td>
-          <td>{iss.get('issue', '—')}</td>
+          <td class="font-mono">{iss_frame}</td>
+          <td>{iss_issue}</td>
           <td>{_sev_badge(iss.get('severity', 'low'))}</td>
           <td class="font-mono">{iss.get('mad_score', '—')}</td>
         </tr>"""
@@ -252,12 +260,12 @@ def generate_html_report(
     frame_stats["by_confidence"]
     
     # Build the comprehensive HTML report
-    html = f"""<!DOCTYPE html>
+    report_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AetherGIS Technical Report — {job_id[:12]}</title>
+  <title>AetherGIS Technical Report — {html.escape(str(job_id)[:12])}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -719,7 +727,7 @@ def generate_html_report(
       <p class="report-subtitle">Satellite Imagery Frame Interpolation Pipeline — Technical Documentation</p>
       
       <div class="report-meta">
-        <span><span class="meta-label">Job ID:</span> {job_id}</span>
+        <span><span class="meta-label">Job ID:</span> {html.escape(str(job_id))}</span>
         <span><span class="meta-label">Layer:</span> {layer_id}</span>
         <span><span class="meta-label">Status:</span> 
           <span class="status-badge {'status-success' if status == 'completed' else 'status-error' if error_msg else 'status-warning'}">
@@ -788,7 +796,7 @@ def generate_html_report(
         <div class="info-grid">
           <div class="info-row">
             <div class="info-label">Job ID</div>
-            <div class="info-value">{job_id}</div>
+            <div class="info-value">{html.escape(str(job_id))}</div>
           </div>
           <div class="info-row">
             <div class="info-label">Data Source</div>
@@ -973,11 +981,11 @@ def generate_html_report(
         <h3 class="section-subtitle">Video Sequences</h3>
         <ul class="artifact-list">
           <li>
-            <span class="artifact-path">/exports/{job_id}/original.mp4</span>
+            <span class="artifact-path">/exports/{html.escape(str(job_id))}/original.mp4</span>
             <span class="artifact-desc">Original observed frame sequence (no interpolation)</span>
           </li>
           <li>
-            <span class="artifact-path">/exports/{job_id}/interpolated.mp4</span>
+            <span class="artifact-path">/exports/{html.escape(str(job_id))}/interpolated.mp4</span>
             <span class="artifact-desc">Full interpolated sequence (observed + AI frames)</span>
           </li>
         </ul>
@@ -985,7 +993,7 @@ def generate_html_report(
         <h3 class="section-subtitle">Frame Archive</h3>
         <ul class="artifact-list">
           <li>
-            <span class="artifact-path">/exports/{job_id}/frames/frame_*.png</span>
+            <span class="artifact-path">/exports/{html.escape(str(job_id))}/frames/frame_*.png</span>
             <span class="artifact-desc">Individual frame images ({n_total} frames, PNG format)</span>
           </li>
         </ul>
@@ -993,11 +1001,11 @@ def generate_html_report(
         <h3 class="section-subtitle">Metadata & Documentation</h3>
         <ul class="artifact-list">
           <li>
-            <span class="artifact-path">/exports/{job_id}/metadata.json</span>
+            <span class="artifact-path">/exports/{html.escape(str(job_id))}/metadata.json</span>
             <span class="artifact-desc">Complete frame metadata with per-frame metrics</span>
           </li>
           <li>
-            <span class="artifact-path">/exports/{job_id}/report.html</span>
+            <span class="artifact-path">/exports/{html.escape(str(job_id))}/report.html</span>
             <span class="artifact-desc">This technical analysis report</span>
           </li>
         </ul>
@@ -1100,7 +1108,7 @@ def generate_html_report(
         <h3 class="section-subtitle">Traceability Statement</h3>
         <p style="font-size: 11px; color: var(--t3); line-height: 1.6;">
           This report was auto-generated by AetherGIS v2.0 pipeline system. All metrics 
-          are computed from the actual execution artifacts stored at <code>/exports/{job_id}/</code>. 
+          are computed from the actual execution artifacts stored at <code>/exports/{html.escape(str(job_id))}/</code>.
           Frame-level metadata includes: source timestamp, interpolation model used, 
           PSNR/SSIM scores (for interpolated frames), confidence classification, and gap 
           category. In case of database record loss, results can be fully reconstructed 
@@ -1118,13 +1126,13 @@ def generate_html_report(
           <strong>Primary Source:</strong> NASA GIBS Earthdata API (Global Imagery Browse Services)<br>
           <strong>Interpolation Engine:</strong> AetherGIS v2.0 with RIFE/FILM optical flow models<br>
           <strong>Processing Location:</strong> AetherGIS Analysis Pipeline (Module 15)<br>
-          <strong>Report ID:</strong> RPT-{job_id[:12]}-{datetime.utcnow().strftime('%Y%m%d')}
+          <strong>Report ID:</strong> RPT-{html.escape(str(job_id)[:12])}-{datetime.utcnow().strftime('%Y%m%d')}
         </p>
       </div>
       
       <div class="footer-meta">
         <span>AetherGIS Technical Report</span>
-        <span>Job: {job_id[:16]}</span>
+        <span>Job: {html.escape(str(job_id)[:16])}</span>
         <span>Generated: {now}</span>
       </div>
     </div>
@@ -1133,4 +1141,4 @@ def generate_html_report(
 </body>
 </html>"""
     
-    return html
+    return report_html
