@@ -1,0 +1,4 @@
+## 2024-05-18 - Prevent XSS in HTML Report Generator
+**Vulnerability:** Cross-Site Scripting (XSS) vulnerability via f-string HTML generation in `report_service.py`. User-controlled inputs like `job_id`, `layer_id`, `data_source`, and contents of arrays like `alerts` or `consistency_issues` were directly injected into HTML templates without proper escaping.
+**Learning:** Manual HTML report generation without a templating engine (like Jinja2) is prone to XSS because it lacks automatic escaping.
+**Prevention:** Ensure `html.escape(str(val))` is systematically applied to all untrusted or dynamic inputs interpolated into manually constructed HTML templates. Rename local string variables holding HTML content from `html` to something else (e.g., `report_html`) to avoid shadowing the built-in `html` module and causing scope reference errors.
