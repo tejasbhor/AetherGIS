@@ -1,0 +1,4 @@
+## 2024-07-04 - Fix XSS in Manual HTML Report Generation
+**Vulnerability:** XSS vulnerability in `backend/app/services/report_service.py` due to string interpolation of user-controlled variables (like `job_id`, `layer_id`, alerts list, etc.) into HTML templates without escaping.
+**Learning:** Python f-strings do not automatically escape HTML. When dynamically generating HTML in a backend service, especially when interpolating external or API input, all non-trusted data must be explicitly escaped. Additionally, when importing the `html` standard library module, care must be taken to not shadow it with local string variables named `html`.
+**Prevention:** Always use `html.escape(str(variable))` for all dynamically generated variables inserted into an HTML string. Do not name local variables storing HTML content `html` if you plan to import the standard library module; use `html_content` instead.
