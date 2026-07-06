@@ -1,0 +1,4 @@
+## 2025-03-05 - Fix XSS in HTML Report Generation
+**Vulnerability:** The HTML report generation in `backend/app/services/report_service.py` (`generate_html_report`) was manually constructing HTML strings using f-strings and user-provided inputs (`job_id`, `layer_id`, `data_source`, etc.) without escaping them, leaving it vulnerable to Cross-Site Scripting (XSS).
+**Learning:** In a fast API backend that doesn't use standard template engines (like Jinja2) and generates HTML strings manually, dynamic parameters aren't automatically escaped. This allows XSS payloads injected via pipeline outputs (like `alerts`, `trajectories`, or `consistency_issues`) to execute when the HTML report is viewed.
+**Prevention:** Always use `html.escape()` on dynamic inputs prior to interpolating them into HTML strings, particularly when a template engine is absent. Convert values to strings before escaping to prevent TypeErrors (e.g., `html.escape(str(val))`).
