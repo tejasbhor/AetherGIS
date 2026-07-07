@@ -1,0 +1,4 @@
+## 2025-02-28 - XSS in HTML Report Generation
+**Vulnerability:** XSS vulnerability in auto-generated HTML reports (`backend/app/services/report_service.py`) due to string interpolation of dynamic inputs directly into the template without HTML escaping.
+**Learning:** Python f-strings and basic templating provide no automatic sanitization. The developer probably didn't consider user input flowing into these job parameter fields, but an adversary might construct payloads through job definitions to execute arbitrary scripts when the report is rendered by a user in the frontend.
+**Prevention:** Always cast and wrap dynamically interpolated data in `html.escape()` within f-strings or custom templates (e.g., `{html.escape(str(variable))}`) when not using an auto-escaping template engine like Jinja2.
