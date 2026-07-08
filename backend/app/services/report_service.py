@@ -7,6 +7,7 @@ execution parameters, quality metrics, and output artifacts.
 from __future__ import annotations
 
 from datetime import datetime
+import html
 from typing import Any, Optional
 
 
@@ -165,20 +166,21 @@ def generate_html_report(
     """
     
     # Extract core data
+    job_id = html.escape(str(job_id))
     now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
     metrics = pipeline_result.get("metrics") or {}
     frames = pipeline_result.get("frames") or []
     
     # Job metadata
-    layer_id = pipeline_result.get("layer_id", "Unknown")
-    data_source = pipeline_result.get("data_source", "Unknown")
-    status = pipeline_result.get("status", "Unknown")
+    layer_id = html.escape(str(pipeline_result.get("layer_id", "Unknown")))
+    data_source = html.escape(str(pipeline_result.get("data_source", "Unknown")))
+    status = html.escape(str(pipeline_result.get("status", "Unknown")))
     bbox = pipeline_result.get("bbox", [])
-    time_start = pipeline_result.get("time_start")
-    time_end = pipeline_result.get("time_end")
+    time_start = html.escape(str(pipeline_result.get("time_start"))) if pipeline_result.get("time_start") is not None else None
+    time_end = html.escape(str(pipeline_result.get("time_end"))) if pipeline_result.get("time_end") is not None else None
     created_at = pipeline_result.get("created_at")
     completed_at = pipeline_result.get("completed_at")
-    error_msg = pipeline_result.get("error")
+    error_msg = html.escape(str(pipeline_result.get("error"))) if pipeline_result.get("error") is not None else None
     
     # Calculate metrics
     n_total = metrics.get("total_frames", len(frames))
@@ -214,19 +216,24 @@ def generate_html_report(
     # Generate tables
     alert_rows = ""
     for a in (alerts or [])[:25]:
+        frame_idx = html.escape(str(a.get('frame_index', '—')))
+        a_type = html.escape(str(a.get('type', '—')).replace('_', ' ').capitalize())
+        a_sev = html.escape(str(a.get('severity', 'low')))
+        a_desc = html.escape(str(a.get('description', '—'))[:140])
         alert_rows += f"""
         <tr>
-          <td class="font-mono">{a.get('frame_index', '—')}</td>
-          <td>{str(a.get('type', '—')).replace('_', ' ').capitalize()}</td>
-          <td>{_sev_badge(a.get('severity', 'low'))}</td>
-          <td style="color: #444444;">{a.get('description', '—')[:140]}</td>
+          <td class="font-mono">{frame_idx}</td>
+          <td>{a_type}</td>
+          <td>{_sev_badge(a_sev)}</td>
+          <td style="color: #444444;">{a_desc}</td>
         </tr>"""
     
     traj_rows = ""
     for t in (trajectories or [])[:15]:
+        t_id = html.escape(str(t.get('id', '—')))
         traj_rows += f"""
         <tr>
-          <td class="font-mono">{t.get('id', '—')}</td>
+          <td class="font-mono">{t_id}</td>
           <td class="font-mono">{t.get('speed', 0):.5f}</td>
           <td class="font-mono">{t.get('direction_deg', 0):.1f}&deg;</td>
           <td class="font-mono">{t.get('intensity', 0):.4f}</td>
@@ -234,25 +241,30 @@ def generate_html_report(
     
     issue_rows = ""
     for iss in (consistency_issues or [])[:20]:
+        iss_frame = html.escape(str(iss.get('frame', '—')))
+        iss_issue = html.escape(str(iss.get('issue', '—')))
+        iss_sev = html.escape(str(iss.get('severity', 'low')))
+        iss_mad = html.escape(str(iss.get('mad_score', '—')))
         issue_rows += f"""
         <tr>
-          <td class="font-mono">{iss.get('frame', '—')}</td>
-          <td>{iss.get('issue', '—')}</td>
-          <td>{_sev_badge(iss.get('severity', 'low'))}</td>
-          <td class="font-mono">{iss.get('mad_score', '—')}</td>
+          <td class="font-mono">{iss_frame}</td>
+          <td>{iss_issue}</td>
+          <td>{_sev_badge(iss_sev)}</td>
+          <td class="font-mono">{iss_mad}</td>
         </tr>"""
     
     # Model distribution rows
     model_rows = ""
     for model, count in sorted(frame_stats["by_model"].items(), key=lambda x: x[1], reverse=True):
         pct = (count / max(n_total, 1)) * 100
-        model_rows += f"<tr><td class='font-mono'>{model}</td><td class='font-mono'>{count}</td><td class='font-mono'>{pct:.1f}%</td></tr>"
+        esc_model = html.escape(str(model))
+        model_rows += f"<tr><td class='font-mono'>{esc_model}</td><td class='font-mono'>{count}</td><td class='font-mono'>{pct:.1f}%</td></tr>"
     
     # Confidence distribution
     frame_stats["by_confidence"]
     
     # Build the comprehensive HTML report
-    html = f"""<!DOCTYPE html>
+    html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -1133,4 +1145,4 @@ def generate_html_report(
 </body>
 </html>"""
     
-    return html
+    return html_content
